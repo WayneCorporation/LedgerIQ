@@ -1,0 +1,48 @@
+services:
+  ledgeriq:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://ledgeriq:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/ledgeriq
+    ports:
+      - "3000:3000"
+    volumes:
+      - ledgeriq-data:/app/data
+      - ledgeriq-backups:/app/backups
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ledgeriq
+      POSTGRES_USER: ledgeriq
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - ledgeriq-postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledgeriq -d ledgeriq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  ledgeriq-data:
+  ledgeriq-backups:
+  ledgeriq-postgres:

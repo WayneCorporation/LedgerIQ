@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ledgerIQ API</title><link rel="stylesheet" href="legal.css"></head><body><main><a href="/">← ledgerIQ</a><h1>ledgerIQ API</h1><p>Use an API key created in the Enterprise control centre as a bearer token. Keys are shown once and can be revoked at any time.</p><h2>Authentication</h2><pre>Authorization: Bearer lq_your_key</pre><p>Read-only keys can call GET endpoints. Keys with the <code>write</code> scope can create and update finance records but cannot access account security, billing, API-key or webhook-secret endpoints.</p><h2>Core endpoints</h2><pre>GET  /api/bootstrap
+POST /api/clients
+PUT  /api/clients/:id
+POST /api/invoices
+PUT  /api/invoices/:id
+PATCH /api/invoices/:id
+POST /api/expenses
+PUT  /api/expenses/:id
+GET  /api/account/export</pre><h2>Enterprise endpoints</h2><pre>GET  /api/enterprise/summary
+POST /api/enterprise/approvals
+PATCH /api/enterprise/approvals/:id
+POST /api/enterprise/bank-transactions/import
+POST /api/enterprise/bank-transactions/:id/match
+POST /api/enterprise/documents
+POST /api/enterprise/payroll-runs</pre><h2>Outbound webhooks</h2><p>ledgerIQ signs the exact JSON body using HMAC-SHA256. Compare the hexadecimal result to <code>X-LedgerIQ-Signature</code>. Use <code>X-LedgerIQ-Delivery</code> as the unique delivery identifier and make consumers idempotent.</p><h2>Errors and limits</h2><p>Responses are JSON. Errors use <code>{"error":"message"}</code>. Uploaded files are limited to 5 MB. Bank imports accept up to 1,000 transactions per request. Treat HTTP 429 as retryable with exponential backoff.</p></main></body></html>

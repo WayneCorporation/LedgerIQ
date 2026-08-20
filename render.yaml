@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: ledgeriq
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    disk:
+      name: ledgeriq-data
+      mountPath: /app/data
+      sizeGB: 10
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: true
+      - key: LEDGERIQ_DATA_DIR
+        value: /app/data
+      - key: LEDGERIQ_BACKUP_DIR
+        value: /app/data/backups
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ledgeriq-postgres
+          property: connectionString
+      - key: OBJECT_STORAGE_PATH
+        value: /app/data/documents
+      - key: APP_ORIGIN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: INTEGRATION_ENCRYPTION_KEY
+        generateValue: true
+      - key: BACKUP_ENCRYPTION_KEY
+        generateValue: true
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_MONTHLY_PLAN_CODE
+        sync: false
+      - key: PAYSTACK_ANNUAL_PLAN_CODE
+        sync: false
+      - key: MONITORING_DSN
+        sync: false
+      - key: OFFSITE_BACKUP_URL
+        sync: false
+      - key: OFFSITE_BACKUP_TOKEN
+        sync: false
+
+databases:
+  - name: ledgeriq-postgres
+    databaseName: ledgeriq
+    user: ledgeriq
