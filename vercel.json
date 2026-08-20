@@ -7,8 +7,9 @@
       "includeFiles": "{index.html,landing.html,privacy.html,terms.html,api.html,styles.css,marketing.css,enterprise-marketing.css,legal.css}"
     }
   },
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
+  "routes": [
+    { "src": "/api/cron", "dest": "/api/cron" },
+    { "src": "/(.*)", "dest": "/api/index" }
   ],
   "crons": [
     { "path": "/api/cron", "schedule": "0 3 * * *" }
