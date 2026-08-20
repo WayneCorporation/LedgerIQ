@@ -12,9 +12,11 @@ const ready=(async()=>{
 })();
 
 function placeholders(sql){let index=0,inQuote=false,result='';for(let i=0;i<sql.length;i++){const char=sql[i];if(char==="'"&&sql[i+1]==="'"){result+="''";i++;continue}if(char==="'")inQuote=!inQuote;if(char==='?'&&!inQuote)result+=`$${++index}`;else result+=char}return result}
+function quoteAliases(sql){let result='',inQuote=false,i=0;while(i<sql.length){const char=sql[i];if(char==="'"&&sql[i+1]==="'"){result+="''";i+=2;continue}if(char==="'"){inQuote=!inQuote;result+=char;i++;continue}if(!inQuote&&/[A-Za-z_]/.test(char)){let j=i+1;while(j<sql.length&&/[A-Za-z0-9_]/.test(sql[j]))j++;const word=sql.slice(i,j);result+=(/[a-z]/.test(word)&&/[A-Z]/.test(word))?`"${word}"`:word;i=j;continue}result+=char;i++}return result}
 function translate(sql,{run=false}={}){
  const pragma=String(sql).trim().match(/^PRAGMA\s+table_info\(([^)]+)\)/i);if(pragma)return{sql:'SELECT column_name AS name FROM information_schema.columns WHERE table_schema=\'public\' AND table_name=$1',params:[pragma[1].trim()]};
  let value=String(sql).replace(/PRAGMA\s+[^;]+;?/gi,'').replace(/INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT/gi,'SERIAL PRIMARY KEY').replace(/\bREAL\b/gi,'NUMERIC(18,4)').replace(/\s+COLLATE\s+NOCASE/gi,'').trim();
+ value=quoteAliases(value);
  const ignored=/\bINSERT\s+OR\s+IGNORE\s+INTO\b/i.test(value);value=value.replace(/\bINSERT\s+OR\s+IGNORE\s+INTO\b/gi,'INSERT INTO');value=placeholders(value).replace(/;\s*$/,'');
  if(ignored&&!/\bON\s+CONFLICT\b/i.test(value))value+=' ON CONFLICT DO NOTHING';if(run&&/^INSERT\s+/i.test(value)&&! /\bRETURNING\b/i.test(value))value+=' RETURNING *';return{sql:value};
 }
