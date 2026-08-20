@@ -1,5 +1,6 @@
 const http = require('node:http');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawnSync}=require('node:child_process');
@@ -12,8 +13,8 @@ loadEnv();
 validateProductionConfig();
 const SESSION_SECRET=process.env.SESSION_SECRET||'ledgeriq-local-development-only';
 const ROOT = __dirname;
-const DATA_DIR = process.env.LEDGERIQ_DATA_DIR || path.join(ROOT, 'data');
-const BACKUP_DIR = process.env.LEDGERIQ_BACKUP_DIR || path.join(ROOT, 'backups');
+const DATA_DIR = process.env.LEDGERIQ_DATA_DIR || (process.env.VERCEL ? os.tmpdir() : path.join(ROOT, 'data'));
+const BACKUP_DIR = process.env.LEDGERIQ_BACKUP_DIR || (process.env.VERCEL ? os.tmpdir() : path.join(ROOT, 'backups'));
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
 const DB_PATH=path.join(DATA_DIR,'ledgeriq.sqlite');
@@ -232,12 +233,20 @@ function staticFile(req,res,url) {
   if(range){const match=range.match(/^bytes=(\d+)-(\d*)$/),start=match?Number(match[1]):NaN,end=match&&match[2]?Number(match[2]):stat.size-1;if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start||start>=stat.size||end>=stat.size){res.writeHead(416,{'Content-Range':`bytes */${stat.size}`});res.end();return true;}res.writeHead(206,{'Content-Range':`bytes ${start}-${end}/${stat.size}`,'Accept-Ranges':'bytes','Content-Length':end-start+1});if(req.method==='HEAD')res.end();else fs.createReadStream(resolved,{start,end}).pipe(res);return true;}
   res.writeHead(200,{'Content-Length':stat.size});if(req.method==='HEAD')res.end();else fs.createReadStream(resolved).pipe(res);return true;
 }
-const server=http.createServer(async(req,res)=>{securityHeaders(res);try{const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);if(url.pathname.startsWith('/api/'))return await api(req,res,url);if(!staticFile(req,res,url))fail(res,404,'Not found');}catch(error){const status=error.message==='Request too large'?413:error.message==='Invalid JSON'?400:500;if(status>=500){console.error(error);reportError(error,{method:req.method,url:req.url}).catch(()=>{})}fail(res,status,status===400?'Request body must be valid JSON':status===413?'Request too large':'Something went wrong');}});
-server.listen(PORT,()=>console.log(`ledgerIQ running on http://localhost:${PORT}`));
-for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>server.close(()=>{db.close();process.exit(0)}));
+async function requestHandler(req,res){securityHeaders(res);try{const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);if(url.pathname.startsWith('/api/'))return await api(req,res,url);if(!staticFile(req,res,url))fail(res,404,'Not found');}catch(error){const status=error.message==='Request too large'?413:error.message==='Invalid JSON'?400:500;if(status>=500){console.error(error);reportError(error,{method:req.method,url:req.url}).catch(()=>{})}fail(res,status,status===400?'Request body must be valid JSON':status===413?'Request too large':'Something went wrong');}}
 
 async function backupDatabase(){try{const dateStamp=new Date().toISOString().slice(0,10),extension=db.dialect==='postgres'?'dump':'sqlite',filename=`ledgeriq-${dateStamp}.${extension}`,file=path.join(BACKUP_DIR,filename);if(!fs.existsSync(file)){if(db.dialect==='postgres'){const result=spawnSync('pg_dump',['--format=custom','--no-owner','--no-privileges','--file',file,process.env.DATABASE_URL],{encoding:'utf8',timeout:120000});if(result.status!==0)throw new Error(`pg_dump failed: ${String(result.stderr||result.error?.message||'unknown error').slice(0,500)}`)}else{const target=file.replaceAll("'","''");db.exec(`VACUUM INTO '${target}'`)}}if(process.env.OFFSITE_BACKUP_URL)await uploadBackup(file);const files=fs.readdirSync(BACKUP_DIR).filter(f=>/\.(sqlite|dump)$/.test(f)).sort().reverse();for(const old of files.slice(7))fs.unlinkSync(path.join(BACKUP_DIR,old));}catch(error){console.error('Backup failed',error);reportError(error,{operation:'backup'}).catch(()=>{});}}
-if(process.env.DISABLE_AUTOMATED_BACKUPS!=='true'){backupDatabase();setInterval(backupDatabase,24*60*60*1000).unref()}
-if(process.env.MONITORING_DSN)checkMonitoring().catch(()=>{});
-setInterval(()=>enterprise.runJobs().catch(error=>console.error('Background job failed',error)),10_000).unref();
-setInterval(()=>{db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(now());db.prepare('DELETE FROM auth_tokens WHERE expires_at<?').run(now());db.prepare('DELETE FROM api_idempotency WHERE created_at<?').run(new Date(Date.now()-24*60*60*1000).toISOString());for(const [key,times] of rateBuckets)if(!times.some(t=>Date.now()-t<15*60_000))rateBuckets.delete(key);},60*60*1000).unref();
+async function runMaintenance(){await enterprise.runJobs().catch(error=>console.error('Background job failed',error));db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(now());db.prepare('DELETE FROM auth_tokens WHERE expires_at<?').run(now());db.prepare('DELETE FROM api_idempotency WHERE created_at<?').run(new Date(Date.now()-24*60*60*1000).toISOString());for(const [key,times] of rateBuckets)if(!times.some(t=>Date.now()-t<15*60_000))rateBuckets.delete(key);}
+
+if(process.env.VERCEL){
+  module.exports=requestHandler;
+  module.exports.runMaintenance=runMaintenance;
+} else {
+  const server=http.createServer(requestHandler);
+  server.listen(PORT,()=>console.log(`ledgerIQ running on http://localhost:${PORT}`));
+  for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>server.close(()=>{db.close();process.exit(0)}));
+  if(process.env.DISABLE_AUTOMATED_BACKUPS!=='true'){backupDatabase();setInterval(backupDatabase,24*60*60*1000).unref()}
+  if(process.env.MONITORING_DSN)checkMonitoring().catch(()=>{});
+  setInterval(()=>enterprise.runJobs().catch(error=>console.error('Background job failed',error)),10_000).unref();
+  setInterval(()=>{db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(now());db.prepare('DELETE FROM auth_tokens WHERE expires_at<?').run(now());db.prepare('DELETE FROM api_idempotency WHERE created_at<?').run(new Date(Date.now()-24*60*60*1000).toISOString());for(const [key,times] of rateBuckets)if(!times.some(t=>Date.now()-t<15*60_000))rateBuckets.delete(key);},60*60*1000).unref();
+}

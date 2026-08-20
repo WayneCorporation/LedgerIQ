@@ -1,5 +1,6 @@
 const crypto=require('node:crypto');
 const fs=require('node:fs');
+const os=require('node:os');
 const path=require('node:path');
 function sha256(value){return crypto.createHash('sha256').update(value).digest('hex')}
 function hmac(key,value,encoding){return crypto.createHmac('sha256',key).update(value).digest(encoding)}
@@ -13,6 +14,6 @@ function s3Storage(){
  }
  return{type:'s3',put:(key,data,mime)=>request('PUT',key,data,mime),get:async key=>Buffer.from(await (await request('GET',key)).arrayBuffer()),delete:key=>request('DELETE',key)};
 }
-function localStorage(){const directory=process.env.OBJECT_STORAGE_PATH||path.join(__dirname,'data','documents');fs.mkdirSync(directory,{recursive:true});return{type:'local',put:async(key,data)=>fs.writeFileSync(path.join(directory,key),data,{flag:'wx'}),get:async key=>fs.readFileSync(path.join(directory,key)),delete:async key=>{const target=path.join(directory,key);if(fs.existsSync(target))fs.unlinkSync(target)}}}
+function localStorage(){const directory=process.env.OBJECT_STORAGE_PATH||(process.env.VERCEL?path.join(os.tmpdir(),'documents'):path.join(__dirname,'data','documents'));fs.mkdirSync(directory,{recursive:true});return{type:'local',put:async(key,data)=>fs.writeFileSync(path.join(directory,key),data,{flag:'wx'}),get:async key=>fs.readFileSync(path.join(directory,key)),delete:async key=>{const target=path.join(directory,key);if(fs.existsSync(target))fs.unlinkSync(target)}}}
 function createStorage(){return process.env.OBJECT_STORAGE_ENDPOINT?s3Storage():localStorage()}
 module.exports={createStorage};

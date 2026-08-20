@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{index.html,landing.html,privacy.html,terms.html,api.html,styles.css,marketing.css,enterprise-marketing.css,legal.css}"
+    },
+    "api/cron.js": {
+      "includeFiles": "{index.html,landing.html,privacy.html,terms.html,api.html,styles.css,marketing.css,enterprise-marketing.css,legal.css}"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/api/cron", "schedule": "*/10 * * * *" }
+  ]
+}
