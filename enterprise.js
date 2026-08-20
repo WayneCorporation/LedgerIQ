@@ -13,7 +13,7 @@ const PERMISSIONS={
 };
 
 function initEnterprise(db,h){
- const {send,fail,body,clean,now,id,email,hash,operationalState=()=>({}),clientIp=req=>req.socket.remoteAddress||''}=h;
+ const {send,fail,body,clean,now,id,email,hash,operationalState=()=>({}),clientIp=req=>req.socket?.remoteAddress||''}=h;
  const storage=createStorage();
  db.exec(`
  CREATE TABLE IF NOT EXISTS organizations (
