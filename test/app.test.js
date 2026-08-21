@@ -33,6 +33,37 @@ test('required email verification blocks financial mutations',async t=>{
  const blocked=await fetch(origin+'/api/clients',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,Cookie:cookie},body:JSON.stringify({name:'Blocked Client'})});assert.equal(blocked.status,403);assert.match((await blocked.json()).error,/Verify your email/);
 });
 
+test('data retention purge deletes only tenants that opted in and are actually past their grace period',async t=>{
+ const root=path.resolve(__dirname,'..'),temp=fs.mkdtempSync(path.join(os.tmpdir(),'ledgeriq-retention-test-')),port=35000+Math.floor(Math.random()*1000),origin=`http://localhost:${port}`,webhookSecret='retention-test-billing-webhook-secret';
+ const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,NODE_ENV:'test',PORT:String(port),APP_ORIGIN:origin,BILLING_WEBHOOK_SECRET:webhookSecret,SESSION_SECRET:'retention-test-secret-longer-than-32-characters',INTEGRATION_ENCRYPTION_KEY:'retention-integration-key-longer-than-32-characters',LEDGERIQ_DATA_DIR:path.join(temp,'data'),LEDGERIQ_BACKUP_DIR:path.join(temp,'backups'),OBJECT_STORAGE_PATH:path.join(temp,'documents')},stdio:['ignore','pipe','pipe']});
+ child.stderr.on('data',data=>process.stderr.write(data));t.after(async()=>{child.kill();await once(child,'exit');fs.rmSync(temp,{recursive:true,force:true})});
+ await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('retention server start timeout')),5000);child.stdout.on('data',data=>{if(String(data).includes('ledgerIQ running')){clearTimeout(timer);resolve()}});child.on('exit',code=>reject(new Error(`retention server exited ${code}`)))});
+ async function request(route,{cookie,...options}={}){const response=await fetch(origin+route,{...options,headers:{'Content-Type':'application/json',Origin:origin,...(cookie?{Cookie:cookie}:{}),...(options.headers||{})}}),data=await response.json().catch(()=>({}));return{response,data,cookie:response.headers.get('set-cookie')?.split(';')[0]}}
+ async function cancelViaWebhook(email){const body=JSON.stringify({email,status:'cancelled'}),signature=crypto.createHmac('sha256',webhookSecret).update(body).digest('hex');const result=await fetch(origin+'/api/billing/webhook',{method:'POST',headers:{'Content-Type':'application/json','x-ledgeriq-signature':signature},body});assert.equal(result.status,200)}
+ async function reactivateViaWebhook(email){const body=JSON.stringify({email,status:'active'}),signature=crypto.createHmac('sha256',webhookSecret).update(body).digest('hex');const result=await fetch(origin+'/api/billing/webhook',{method:'POST',headers:{'Content-Type':'application/json','x-ledgeriq-signature':signature},body});assert.equal(result.status,200)}
+
+ const purged=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'purged@example.com',password:'a-secure-password',companyName:'Purged Co',ownerName:'Pat Purged'})});assert.equal(purged.response.status,201);
+ const survivorDefault=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'survivor-default@example.com',password:'a-secure-password',companyName:'Survivor Default Co',ownerName:'Sam Survivor'})});assert.equal(survivorDefault.response.status,201);
+ const survivorReactivated=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'survivor-reactivated@example.com',password:'a-secure-password',companyName:'Survivor Reactivated Co',ownerName:'Robin Survivor'})});assert.equal(survivorReactivated.response.status,201);
+
+ const invalidRetention=await request('/api/profile',{cookie:purged.cookie,method:'PUT',body:JSON.stringify({companyName:'Purged Co',ownerName:'Pat Purged',email:'purged@example.com',currency:'ZAR',retentionDays:5})});assert.equal(invalidRetention.response.status,400,'only the fixed retention presets are valid');
+
+ await cancelViaWebhook('purged@example.com');
+ const setRetention=await request('/api/profile',{cookie:purged.cookie,method:'PUT',body:JSON.stringify({companyName:'Purged Co',ownerName:'Pat Purged',email:'purged@example.com',currency:'ZAR',retentionDays:0})});assert.equal(setRetention.response.status,200);assert.equal(setRetention.data.profile.dataRetentionDays,0);
+
+ await cancelViaWebhook('survivor-default@example.com');
+
+ await cancelViaWebhook('survivor-reactivated@example.com');
+ await reactivateViaWebhook('survivor-reactivated@example.com');
+ const reactivatedRetention=await request('/api/profile',{cookie:survivorReactivated.cookie,method:'PUT',body:JSON.stringify({companyName:'Survivor Reactivated Co',ownerName:'Robin Survivor',email:'survivor-reactivated@example.com',currency:'ZAR',retentionDays:0})});assert.equal(reactivatedRetention.response.status,200,'a reactivated tenant can still update its profile normally');
+
+ const maintenance=await request('/api/test/run-maintenance',{method:'POST',body:'{}'});assert.equal(maintenance.response.status,200);
+
+ assert.equal((await request('/api/bootstrap',{cookie:purged.cookie})).response.status,401,'a cancelled tenant with retentionDays=0 must be purged');
+ assert.equal((await request('/api/bootstrap',{cookie:survivorDefault.cookie})).response.status,200,'a cancelled tenant that never opted into a retention window must default to never-purge');
+ assert.equal((await request('/api/bootstrap',{cookie:survivorReactivated.cookie})).response.status,200,'reactivation must clear cancelled_at so retentionDays=0 does not retroactively purge it');
+});
+
 async function coreFlow(t,databaseUrl=''){
  const root=path.resolve(__dirname,'..'),temp=fs.mkdtempSync(path.join(os.tmpdir(),'ledgeriq-test-')),port=32000+Math.floor(Math.random()*2000);
  const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,NODE_ENV:'test',DATABASE_URL:databaseUrl,DATABASE_RESET_FOR_TESTS:databaseUrl?'true':'false',DISABLE_AUTOMATED_BACKUPS:databaseUrl?'true':'false',PORT:String(port),APP_ORIGIN:`http://localhost:${port}`,SESSION_SECRET:'test-secret-that-is-longer-than-32-characters',INTEGRATION_ENCRYPTION_KEY:'test-integration-secret-longer-than-32-characters',BILLING_WEBHOOK_SECRET:'test-billing-webhook-secret',LEDGERIQ_DATA_DIR:path.join(temp,'data'),LEDGERIQ_BACKUP_DIR:path.join(temp,'backups'),OBJECT_STORAGE_PATH:path.join(temp,'documents')},stdio:['ignore','pipe','pipe']});
