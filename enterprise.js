@@ -125,6 +125,9 @@ function initEnterprise(db,h){
  ensureColumn('approval_requests','required_approvals','INTEGER NOT NULL DEFAULT 1');
  ensureColumn('approval_requests','approval_count','INTEGER NOT NULL DEFAULT 0');
  ensureColumn('stored_files','checksum','TEXT NOT NULL DEFAULT \'\'');
+ ensureColumn('organizations','invoice_template_id','TEXT NOT NULL DEFAULT \'classic\'');
+ ensureColumn('organizations','invoice_accent_color','TEXT NOT NULL DEFAULT \'#5b5fef\'');
+ ensureColumn('organizations','invoice_font','TEXT NOT NULL DEFAULT \'sans\'');
  migrateExisting();
 
  function ensureColumn(table,column,type){const columns=db.prepare(`PRAGMA table_info(${table})`).all().map(c=>c.name);if(!columns.includes(column))db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);}
