@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
+const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -33,6 +34,42 @@ test('required email verification blocks financial mutations',async t=>{
  const blocked=await fetch(origin+'/api/clients',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,Cookie:cookie},body:JSON.stringify({name:'Blocked Client'})});assert.equal(blocked.status,403);assert.match((await blocked.json()).error,/Verify your email/);
 });
 
+test('phone/SMS OTP: enrollment and login second factor work end-to-end against a stub provider',async t=>{
+ const sentMessages=[];
+ const smsServer=http.createServer((req,res)=>{let raw='';req.on('data',c=>raw+=c);req.on('end',()=>{sentMessages.push(JSON.parse(raw||'{}'));res.writeHead(200,{'Content-Type':'application/json'});res.end('{}')})});
+ await new Promise(resolve=>smsServer.listen(0,resolve));
+ const smsPort=smsServer.address().port;
+ t.after(()=>new Promise(resolve=>smsServer.close(resolve)));
+ function latestCode(){const last=sentMessages[sentMessages.length-1];const match=/code is (\d{6})/.exec(last?.message||'');if(!match)throw new Error(`no OTP code found in last SMS: ${JSON.stringify(last)}`);return match[1]}
+
+ const root=path.resolve(__dirname,'..'),temp=fs.mkdtempSync(path.join(os.tmpdir(),'ledgeriq-otp-test-')),port=36000+Math.floor(Math.random()*1000),origin=`http://localhost:${port}`;
+ const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,NODE_ENV:'test',PORT:String(port),APP_ORIGIN:origin,SMS_PROVIDER_API_URL:`http://localhost:${smsPort}`,SMS_PROVIDER_API_KEY:'test-sms-key',SESSION_SECRET:'otp-test-secret-longer-than-32-characters',INTEGRATION_ENCRYPTION_KEY:'otp-test-integration-key-longer-than-32-characters',LEDGERIQ_DATA_DIR:path.join(temp,'data'),LEDGERIQ_BACKUP_DIR:path.join(temp,'backups'),OBJECT_STORAGE_PATH:path.join(temp,'documents')},stdio:['ignore','pipe','pipe']});
+ child.stderr.on('data',data=>process.stderr.write(data));t.after(async()=>{child.kill();await once(child,'exit');fs.rmSync(temp,{recursive:true,force:true})});
+ await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('otp server start timeout')),5000);child.stdout.on('data',data=>{if(String(data).includes('ledgerIQ running')){clearTimeout(timer);resolve()}});child.on('exit',code=>reject(new Error(`otp server exited ${code}`)))});
+ async function request(route,{cookie,...options}={}){const response=await fetch(origin+route,{...options,headers:{'Content-Type':'application/json',Origin:origin,...(cookie?{Cookie:cookie}:{}),...(options.headers||{})}}),data=await response.json().catch(()=>({}));return{response,data,cookie:response.headers.get('set-cookie')?.split(';')[0]}}
+
+ const registered=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password',companyName:'Phone Co',ownerName:'Pat Phone'})});assert.equal(registered.response.status,201);
+ const plainLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password'})});assert.equal(plainLogin.response.status,200);assert.equal(plainLogin.data.otpRequired,undefined,'OTP must not be required before it is enabled');
+
+ const setup=await request('/api/security/phone/setup',{cookie:registered.cookie,method:'POST',body:JSON.stringify({phone:'+27821234567'})});assert.equal(setup.response.status,200);
+ assert.equal(sentMessages.length,1);assert.equal(sentMessages[0].to,'+27821234567');
+ const wrongEnable=await request('/api/security/phone/enable',{cookie:registered.cookie,method:'POST',body:JSON.stringify({code:'000000'})});assert.equal(wrongEnable.response.status,400,'a wrong enrollment code must be rejected');
+ const enable=await request('/api/security/phone/enable',{cookie:registered.cookie,method:'POST',body:JSON.stringify({code:latestCode()})});assert.equal(enable.response.status,200);
+ const statusAfterEnable=await request('/api/security/status',{cookie:registered.cookie});assert.equal(statusAfterEnable.data.smsOtpEnabled,1);assert.ok(statusAfterEnable.data.phoneVerifiedAt);
+
+ const gatedLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password'})});assert.equal(gatedLogin.response.status,200);assert.equal(gatedLogin.data.otpRequired,true);assert.ok(gatedLogin.data.challengeId);assert.equal(gatedLogin.cookie,undefined,'no session cookie until the OTP step also succeeds');
+ assert.equal(sentMessages.length,2);
+
+ const wrongVerify=await request('/api/auth/otp/verify',{method:'POST',body:JSON.stringify({challengeId:gatedLogin.data.challengeId,code:'000000'})});assert.equal(wrongVerify.response.status,401);
+ const verify=await request('/api/auth/otp/verify',{method:'POST',body:JSON.stringify({challengeId:gatedLogin.data.challengeId,code:latestCode()})});assert.equal(verify.response.status,200);assert.match(verify.cookie,/ledgeriq_session/);
+ assert.equal((await request('/api/me',{cookie:verify.cookie})).response.status,200,'the session issued after OTP verification must actually work');
+
+ const replay=await request('/api/auth/otp/verify',{method:'POST',body:JSON.stringify({challengeId:gatedLogin.data.challengeId,code:latestCode()})});assert.equal(replay.response.status,401,'a consumed OTP code must not be replayable');
+
+ const disable=await request('/api/security/phone/disable',{cookie:verify.cookie,method:'POST',body:JSON.stringify({password:'a-secure-password'})});assert.equal(disable.response.status,200);
+ const loginAfterDisable=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password'})});assert.equal(loginAfterDisable.response.status,200);assert.equal(loginAfterDisable.data.otpRequired,undefined,'disabling SMS OTP must remove the login gate');
+});
+
 async function coreFlow(t,databaseUrl=''){
  const root=path.resolve(__dirname,'..'),temp=fs.mkdtempSync(path.join(os.tmpdir(),'ledgeriq-test-')),port=32000+Math.floor(Math.random()*2000);
  const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,NODE_ENV:'test',DATABASE_URL:databaseUrl,DATABASE_RESET_FOR_TESTS:databaseUrl?'true':'false',DISABLE_AUTOMATED_BACKUPS:databaseUrl?'true':'false',PORT:String(port),APP_ORIGIN:`http://localhost:${port}`,SESSION_SECRET:'test-secret-that-is-longer-than-32-characters',INTEGRATION_ENCRYPTION_KEY:'test-integration-secret-longer-than-32-characters',BILLING_WEBHOOK_SECRET:'test-billing-webhook-secret',LEDGERIQ_DATA_DIR:path.join(temp,'data'),LEDGERIQ_BACKUP_DIR:path.join(temp,'backups'),OBJECT_STORAGE_PATH:path.join(temp,'documents')},stdio:['ignore','pipe','pipe']});
@@ -45,7 +82,8 @@ async function coreFlow(t,databaseUrl=''){
  for(const sensitive of ['/server.js','/enterprise.js','/package.json','/.env','/data/ledgeriq.sqlite','/backups/ledgeriq.sqlite'])assert.equal((await fetch(base+sensitive)).status,404,`${sensitive} must not be public`);
  const health=await request('/api/health');assert.equal(health.data.ok,true);const ready=await request('/api/ready');assert.equal(ready.response.status,200);assert.equal(ready.data.database,true);assert.equal((await request('/api/auth/register',{method:'POST',body:'{'})).response.status,400);
  const first=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'a-secure-password',companyName:'Acme Studio',ownerName:'Ada Owner'})});assert.equal(first.response.status,201);assert.match(first.cookie,/ledgeriq_session/);
- assert.ok(first.data.verificationToken);assert.equal((await request('/api/auth/verify-email',{method:'POST',body:JSON.stringify({token:first.data.verificationToken})})).response.status,200);const securityStatus=await request('/api/security/status',{cookie:first.cookie});assert.ok(securityStatus.data.emailVerifiedAt);
+ assert.ok(first.data.verificationToken);assert.equal((await request('/api/auth/verify-email',{method:'POST',body:JSON.stringify({token:first.data.verificationToken})})).response.status,200);const securityStatus=await request('/api/security/status',{cookie:first.cookie});assert.ok(securityStatus.data.emailVerifiedAt);assert.equal(securityStatus.data.smsOtpEnabled,0);
+ const phoneSetupUnconfigured=await request('/api/security/phone/setup',{cookie:first.cookie,method:'POST',body:JSON.stringify({phone:'+27821234567'})});assert.equal(phoneSetupUnconfigured.response.status,503,'phone OTP must be inert when no SMS provider is configured');
  const billingBody=JSON.stringify({email:'owner@example.com',status:'active'}),billingSignature=crypto.createHmac('sha256','test-billing-webhook-secret').update(billingBody).digest('hex'),billingOptions={method:'POST',headers:{'x-ledgeriq-signature':billingSignature},body:billingBody};const billed=await request('/api/billing/webhook',billingOptions);assert.equal(billed.response.status,200);assert.equal(billed.data.processed,true);const replayedBilling=await request('/api/billing/webhook',billingOptions);assert.equal(replayedBilling.data.replayed,true);
  const second=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'other@example.com',password:'another-secure-password',companyName:'Other Co',ownerName:'Other Owner'})});assert.equal(second.response.status,201);
  const client=await request('/api/clients',{cookie:first.cookie,method:'POST',body:JSON.stringify({name:'Client One',email:'client@example.com',address:'Cape Town',vatNumber:'4123456789'})});assert.equal(client.response.status,201);

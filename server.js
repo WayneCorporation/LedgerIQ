@@ -152,10 +152,20 @@ async function api(req,res,url) {
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){
     if(limited(req,'login'))return fail(res,429,'Too many attempts. Try again later.');
-    const data=await body(req),userEmail=email(data.email),row=db.prepare('SELECT id,password_hash,totp_secret,mfa_enabled FROM users WHERE email=?').get(userEmail);
+    const data=await body(req),userEmail=email(data.email),row=db.prepare('SELECT id,password_hash,totp_secret,mfa_enabled,phone,sms_otp_enabled FROM users WHERE email=?').get(userEmail);
     if(!row||!passwordMatches(String(data.password||''),row.password_hash))return fail(res,401,'Email or password is incorrect');
     if(!security.checkLogin(row,data.mfaCode))return fail(res,401,'Enter the current 6-digit authenticator code');
+    if(row.sms_otp_enabled){
+      let challengeId;try{challengeId=await security.createOtpChallenge(row.id,row.phone)}catch(error){return fail(res,503,error.message)}
+      return send(res,200,{ok:false,otpRequired:true,challengeId});
+    }
     return send(res,200,{ok:true},{'Set-Cookie':createSession(res,row.id)});
+  }
+  if(req.method==='POST'&&url.pathname==='/api/auth/otp/verify'){
+    if(limited(req,'otp-verify',10))return fail(res,429,'Too many attempts. Try again later.');
+    const data=await body(req),userId=security.verifyOtpChallenge(data.challengeId,data.code);
+    if(!userId)return fail(res,401,'Verification code is incorrect or expired');
+    return send(res,200,{ok:true},{'Set-Cookie':createSession(res,userId)});
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/logout'){const jar=cookies(req),raw=jar.ledgeriq_session;if(raw)db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hash(raw));return send(res,200,{ok:true},{'Set-Cookie':[sessionCookie('',true)]});}
   if(req.method==='GET'&&url.pathname==='/api/me'){const user=currentUser(req);return user?send(res,200,user):fail(res,401,'Please sign in');}
