@@ -18,7 +18,8 @@
       <form id="authForm">
         <div id="registrationFields" hidden><label>Business name<input id="authCompany" autocomplete="organization" /></label><label>Your name<input id="authOwner" autocomplete="name" /></label></div>
         <label>Email address<input id="authEmail" type="email" autocomplete="email" required /></label>
-        <label>Password<input id="authPassword" type="password" minlength="10" autocomplete="current-password" required /></label>
+        <label>Password<input id="authPassword" type="password" autocomplete="current-password" required /></label>
+        <p class="form-hint" id="authPasswordHint" hidden>At least 12 characters, with 3 of: lowercase, uppercase, numbers, symbols.</p>
         <label id="mfaLoginField">Authenticator code (only if enabled)<input id="authMfa" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" /></label>
         <p class="form-error" id="authError" aria-live="polite"></p><button class="primary-button" id="authSubmit" type="submit">Sign in</button>
       </form>

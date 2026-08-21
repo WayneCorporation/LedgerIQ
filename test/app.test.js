@@ -9,6 +9,17 @@ const {once} = require('node:events');
 const {totp} = require('../security');
 const {assertSafeOutboundUrl,privateAddress} = require('../network-security');
 const {encryptBackup,decryptBackup} = require('../operations');
+const {validatePassword} = require('../password-policy');
+
+test('password policy enforces length, character diversity and common-password rejection',()=>{
+ assert.equal(validatePassword('Ab1!aaaa').ok,false);
+ assert.match(validatePassword('Ab1!aaaa').reason,/12 characters/);
+ assert.equal(validatePassword('alllowercaseletters').ok,false);
+ assert.match(validatePassword('alllowercaseletters').reason,/3 of/);
+ assert.equal(validatePassword('Password123!').ok,false);
+ assert.match(validatePassword('Password123!').reason,/too common/);
+ assert.equal(validatePassword('A-secure-password9').ok,true);
+});
 
 test('outbound URL policy blocks local and private networks',async()=>{
  assert.equal(privateAddress('127.0.0.1'),true);
@@ -29,7 +40,7 @@ test('required email verification blocks financial mutations',async t=>{
  const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,NODE_ENV:'development',PORT:String(port),APP_ORIGIN:origin,REQUIRE_EMAIL_VERIFICATION:'true',SESSION_SECRET:'verification-test-secret-longer-than-32-characters',INTEGRATION_ENCRYPTION_KEY:'verification-integration-key-longer-than-32-characters',LEDGERIQ_DATA_DIR:path.join(temp,'data'),LEDGERIQ_BACKUP_DIR:path.join(temp,'backups'),OBJECT_STORAGE_PATH:path.join(temp,'documents')},stdio:['ignore','pipe','pipe']});
  child.stderr.on('data',data=>process.stderr.write(data));t.after(async()=>{child.kill();await once(child,'exit');fs.rmSync(temp,{recursive:true,force:true})});
  await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('verification server start timeout')),5000);child.stdout.on('data',data=>{if(String(data).includes('ledgerIQ running')){clearTimeout(timer);resolve()}});child.on('exit',code=>reject(new Error(`verification server exited ${code}`)))});
- const response=await fetch(origin+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:JSON.stringify({email:'unverified@example.com',password:'a-secure-password',companyName:'Verify Co',ownerName:'Una Verified'})}),cookie=response.headers.get('set-cookie')?.split(';')[0];assert.equal(response.status,201);
+ const response=await fetch(origin+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:JSON.stringify({email:'unverified@example.com',password:'A-secure-password9',companyName:'Verify Co',ownerName:'Una Verified'})}),cookie=response.headers.get('set-cookie')?.split(';')[0];assert.equal(response.status,201);
  const blocked=await fetch(origin+'/api/clients',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,Cookie:cookie},body:JSON.stringify({name:'Blocked Client'})});assert.equal(blocked.status,403);assert.match((await blocked.json()).error,/Verify your email/);
 });
 
@@ -44,10 +55,11 @@ async function coreFlow(t,databaseUrl=''){
  const landing=await fetch(base);assert.equal(landing.status,200);const landingHtml=await landing.text();assert.match(landingHtml,/ledgerIQ Business/);assert.match(landingHtml,/R5,990\/year/);assert.match(landingHtml,/R<\/span>10k/);assert.equal(landing.headers.get('x-frame-options'),'DENY');assert.equal((await fetch(base+'/developers')).status,200);
  for(const sensitive of ['/server.js','/enterprise.js','/package.json','/.env','/data/ledgeriq.sqlite','/backups/ledgeriq.sqlite'])assert.equal((await fetch(base+sensitive)).status,404,`${sensitive} must not be public`);
  const health=await request('/api/health');assert.equal(health.data.ok,true);const ready=await request('/api/ready');assert.equal(ready.response.status,200);assert.equal(ready.data.database,true);assert.equal((await request('/api/auth/register',{method:'POST',body:'{'})).response.status,400);
- const first=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'a-secure-password',companyName:'Acme Studio',ownerName:'Ada Owner'})});assert.equal(first.response.status,201);assert.match(first.cookie,/ledgeriq_session/);
+ const weakPassword=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'weak@example.com',password:'Ab1!aaaa',companyName:'Weak Co',ownerName:'Weak Owner'})});assert.equal(weakPassword.response.status,400);assert.match(weakPassword.data.error,/12 characters/);
+ const first=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'A-secure-password9',companyName:'Acme Studio',ownerName:'Ada Owner'})});assert.equal(first.response.status,201);assert.match(first.cookie,/ledgeriq_session/);
  assert.ok(first.data.verificationToken);assert.equal((await request('/api/auth/verify-email',{method:'POST',body:JSON.stringify({token:first.data.verificationToken})})).response.status,200);const securityStatus=await request('/api/security/status',{cookie:first.cookie});assert.ok(securityStatus.data.emailVerifiedAt);
  const billingBody=JSON.stringify({email:'owner@example.com',status:'active'}),billingSignature=crypto.createHmac('sha256','test-billing-webhook-secret').update(billingBody).digest('hex'),billingOptions={method:'POST',headers:{'x-ledgeriq-signature':billingSignature},body:billingBody};const billed=await request('/api/billing/webhook',billingOptions);assert.equal(billed.response.status,200);assert.equal(billed.data.processed,true);const replayedBilling=await request('/api/billing/webhook',billingOptions);assert.equal(replayedBilling.data.replayed,true);
- const second=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'other@example.com',password:'another-secure-password',companyName:'Other Co',ownerName:'Other Owner'})});assert.equal(second.response.status,201);
+ const second=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'other@example.com',password:'Another-secure-password9',companyName:'Other Co',ownerName:'Other Owner'})});assert.equal(second.response.status,201);
  const client=await request('/api/clients',{cookie:first.cookie,method:'POST',body:JSON.stringify({name:'Client One',email:'client@example.com',address:'Cape Town',vatNumber:'4123456789'})});assert.equal(client.response.status,201);
  const invoice=await request('/api/invoices',{cookie:first.cookie,method:'POST',body:JSON.stringify({number:'INV-0001',clientId:client.data.id,issue:'2026-08-15',due:'2026-08-30',taxRate:15,discount:100,notes:'Thanks',paymentDetails:'EFT',items:[{description:'Design',qty:2,rate:1000}]})});assert.equal(invoice.response.status,201);
  const expense=await request('/api/expenses',{cookie:first.cookie,method:'POST',body:JSON.stringify({reference:'BILL-0001',vendor:'Cloud Co',category:'Software',date:'2026-08-15',due:'2026-08-20',amount:250,status:'due',notes:'Hosting'})});assert.equal(expense.response.status,201);
@@ -71,8 +83,8 @@ async function coreFlow(t,databaseUrl=''){
  const exported=await request('/api/account/export',{cookie:first.cookie});assert.equal(exported.data.profile.companyName,'Acme Studio');assert.equal(exported.data.invoices[0].items[0].description,'Design updated');
  const readiness=await request('/api/enterprise/readiness',{cookie:first.cookie});assert.equal(readiness.response.status,200);assert.equal(readiness.data.ready,false);
  const mfaSetup=await request('/api/security/mfa/setup',{cookie:first.cookie,method:'POST',body:'{}'});assert.equal(mfaSetup.response.status,200);assert.equal((await request('/api/security/mfa/enable',{cookie:first.cookie,method:'POST',body:JSON.stringify({code:totp(mfaSetup.data.secret)})})).response.status,200);
- const logout=await request('/api/auth/logout',{cookie:first.cookie,method:'POST',body:'{}'});assert.equal(logout.response.status,200);const denied=await request('/api/bootstrap',{cookie:first.cookie});assert.equal(denied.response.status,401);assert.equal((await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'a-secure-password'})})).response.status,401);const mfaLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'a-secure-password',mfaCode:totp(mfaSetup.data.secret)})});assert.equal(mfaLogin.response.status,200);
- const reset=await request('/api/auth/password/request',{method:'POST',body:JSON.stringify({email:'owner@example.com'})});assert.ok(reset.data.resetToken);assert.equal((await request('/api/auth/password/reset',{method:'POST',body:JSON.stringify({token:reset.data.resetToken,password:'a-new-secure-password'})})).response.status,200);assert.equal((await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'a-new-secure-password',mfaCode:totp(mfaSetup.data.secret)})})).response.status,200);
+ const logout=await request('/api/auth/logout',{cookie:first.cookie,method:'POST',body:'{}'});assert.equal(logout.response.status,200);const denied=await request('/api/bootstrap',{cookie:first.cookie});assert.equal(denied.response.status,401);assert.equal((await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'A-secure-password9'})})).response.status,401);const mfaLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'A-secure-password9',mfaCode:totp(mfaSetup.data.secret)})});assert.equal(mfaLogin.response.status,200);
+ const reset=await request('/api/auth/password/request',{method:'POST',body:JSON.stringify({email:'owner@example.com'})});assert.ok(reset.data.resetToken);assert.equal((await request('/api/auth/password/reset',{method:'POST',body:JSON.stringify({token:reset.data.resetToken,password:'A-new-secure-password9'})})).response.status,200);assert.equal((await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'owner@example.com',password:'A-new-secure-password9',mfaCode:totp(mfaSetup.data.secret)})})).response.status,200);
 }
 
 test('core bookkeeping and enterprise governance flow on SQLite',t=>coreFlow(t));

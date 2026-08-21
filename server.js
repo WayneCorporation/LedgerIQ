@@ -8,6 +8,7 @@ const { createDatabase } = require('./database');
 const { initEnterprise } = require('./enterprise');
 const { initSecurity } = require('./security');
 const { reportError,checkMonitoring,uploadBackup,operationalState } = require('./operations');
+const { validatePassword } = require('./password-policy');
 
 loadEnv();
 validateProductionConfig();
@@ -143,7 +144,8 @@ async function api(req,res,url) {
   if(req.method==='POST'&&url.pathname==='/api/auth/register'){
     if(limited(req,'register',5))return fail(res,429,'Too many attempts. Try again later.');
     const data=await body(req),userEmail=email(data.email),password=String(data.password||''),company=clean(data.companyName,120),owner=clean(data.ownerName,120);
-    if(!userEmail||password.length<10||!company||!owner)return fail(res,400,'Use a valid email, a 10+ character password, and complete all fields');
+    const passwordCheck=validatePassword(password);
+    if(!userEmail||!passwordCheck.ok||!company||!owner)return fail(res,400,!userEmail||!company||!owner?'Use a valid email and complete all fields':passwordCheck.reason);
     if(db.prepare('SELECT 1 FROM users WHERE email=?').get(userEmail))return fail(res,409,'An account with this email already exists');
     const tenantId=id(),userId=id(),created=now(),trial=new Date(Date.now()+30*86400000).toISOString();
     transaction(()=>{db.prepare(`INSERT INTO tenants(id,name,owner_name,email,address,currency,trial_ends_at,created_at) VALUES(?,?,?,?,?,'ZAR',?,?)`).run(tenantId,company,owner,userEmail,'',trial,created);db.prepare('INSERT INTO users(id,tenant_id,email,password_hash,created_at) VALUES(?,?,?,?,?)').run(userId,tenantId,userEmail,passwordHash(password),created);enterprise.createPrimaryOrganization(tenantId,userId,{companyName:company,email:userEmail})});
