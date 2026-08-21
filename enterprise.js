@@ -13,7 +13,8 @@ const PERMISSIONS={
 };
 
 function initEnterprise(db,h){
- const {send,fail,body,clean,now,id,email,hash,operationalState=()=>({}),clientIp=req=>req.socket?.remoteAddress||''}=h;
+ const {send,fail,body,clean,now,id,email,hash,operationalState=()=>({}),clientIp=req=>req.socket?.remoteAddress||'',money,date,transaction}=h;
+ const {parseCSV}=require('./csv');
  const storage=createStorage();
  db.exec(`
  CREATE TABLE IF NOT EXISTS organizations (
@@ -125,6 +126,7 @@ function initEnterprise(db,h){
  ensureColumn('approval_requests','required_approvals','INTEGER NOT NULL DEFAULT 1');
  ensureColumn('approval_requests','approval_count','INTEGER NOT NULL DEFAULT 0');
  ensureColumn('stored_files','checksum','TEXT NOT NULL DEFAULT \'\'');
+ ensureColumn('invoice_items','unit','TEXT NOT NULL DEFAULT \'\'');
  migrateExisting();
 
  function ensureColumn(table,column,type){const columns=db.prepare(`PRAGMA table_info(${table})`).all().map(c=>c.name);if(!columns.includes(column))db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);}
@@ -177,6 +179,51 @@ function initEnterprise(db,h){
   if(match&&req.method==='DELETE'){if(!requirePermission(user,res,'manage_integrations'))return true;const result=db.prepare(`UPDATE integration_connections SET encrypted_credentials='',status='disconnected',last_error=NULL WHERE id=? AND organization_id=?`).run(match[1],user.organization_id);if(!result.changes){fail(res,404,'Connection not found');return true}audit(user,'disconnected','integration',match[1],{},ip);send(res,200,{ok:true});return true;}
   if(req.method==='POST'&&route==='/bank-accounts'){if(!requirePermission(user,res,'manage_finance'))return true;const d=await body(req),name=clean(d.name,100),currency=clean(d.currency,3);if(!name||currency.length!==3){fail(res,400,'Account name and currency are required');return true}const accountId=id();db.prepare(`INSERT INTO bank_accounts(id,tenant_id,organization_id,connection_id,provider_account_id,name,account_number_masked,currency,balance,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`).run(accountId,user.tenant_id,user.organization_id,d.connectionId||null,clean(d.providerAccountId,100)||null,name,clean(d.accountNumberMasked,30),currency,Number(d.balance||0),now());audit(user,'created','bank_account',accountId,{name},ip);send(res,201,{id:accountId});return true;}
   if(req.method==='POST'&&route==='/bank-transactions/import'){if(!requirePermission(user,res,'manage_finance'))return true;const d=await body(req),account=db.prepare('SELECT * FROM bank_accounts WHERE id=? AND organization_id=?').get(clean(d.bankAccountId,80),user.organization_id);if(!account||!Array.isArray(d.transactions)){fail(res,400,'Bank account and transactions are required');return true}const stmt=db.prepare(`INSERT OR IGNORE INTO bank_transactions(id,tenant_id,organization_id,bank_account_id,provider_transaction_id,transaction_date,description,amount,currency,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`);let imported=0;for(const tx of d.transactions.slice(0,1000)){const amount=Number(tx.amount);if(!/^\d{4}-\d{2}-\d{2}$/.test(String(tx.date))||!Number.isFinite(amount))continue;const result=stmt.run(id(),user.tenant_id,user.organization_id,account.id,clean(tx.externalId,120)||id(),tx.date,clean(tx.description,300),amount,clean(tx.currency,3)||account.currency,now());imported+=Number(result.changes)}audit(user,'imported','bank_transaction',account.id,{count:imported},ip);send(res,201,{imported});return true;}
+  if(req.method==='POST'&&route==='/import/clients'){
+   if(!requirePermission(user,res,'manage_finance'))return true;
+   const d=await body(req);let parsed;try{parsed=parseCSV(d.csv,{maxRows:2000})}catch(error){fail(res,400,error.message);return true}
+   let imported=0,skipped=0;const errors=[];const insert=db.prepare(`INSERT INTO clients(tenant_id,organization_id,name,email,address,vat_number,created_at) VALUES(?,?,?,?,?,?,?)`);
+   parsed.rows.forEach((row,index)=>{const rowNumber=index+2,name=clean(row.name,150),clientEmail=row.email?email(row.email):'',address=clean(row.address,500),vatNumber=clean(row.vatNumber,80);
+    if(!name){errors.push({row:rowNumber,reason:'Missing name'});skipped++;return}
+    if(clientEmail&&db.prepare('SELECT 1 FROM clients WHERE organization_id=? AND email=?').get(user.organization_id,clientEmail)){errors.push({row:rowNumber,reason:'A client with this email already exists'});skipped++;return}
+    insert.run(user.tenant_id,user.organization_id,name,clientEmail,address,vatNumber,now());imported++});
+   audit(user,'imported','client',null,{imported,skipped},ip);send(res,201,{imported,skipped,errors});return true;
+  }
+  if(req.method==='POST'&&route==='/import/expenses'){
+   if(!requirePermission(user,res,'manage_finance'))return true;
+   const d=await body(req);let parsed;try{parsed=parseCSV(d.csv,{maxRows:2000})}catch(error){fail(res,400,error.message);return true}
+   let imported=0,skipped=0;const errors=[];const insert=db.prepare(`INSERT INTO expenses(tenant_id,organization_id,reference,vendor,category,expense_date,due_date,amount,status,notes,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
+   parsed.rows.forEach((row,index)=>{const rowNumber=index+2,reference=clean(row.reference,60),vendor=clean(row.vendor,150),category=clean(row.category,80)||'Other',expenseDate=date(row.date),dueDate=date(row.due),amount=money(row.amount),status=clean(row.status,10)||'due',notes=clean(row.notes,1000);
+    if(!reference||!vendor||!expenseDate||!dueDate||Number.isNaN(amount)||!['due','paid','overdue'].includes(status)){errors.push({row:rowNumber,reason:'Missing or invalid required field'});skipped++;return}
+    try{insert.run(user.tenant_id,user.organization_id,reference,vendor,category,expenseDate,dueDate,amount,status,notes,now());imported++}
+    catch(error){errors.push({row:rowNumber,reason:error.message.includes('UNIQUE')?'Duplicate reference':error.message});skipped++}});
+   audit(user,'imported','expense',null,{imported,skipped},ip);send(res,201,{imported,skipped,errors});return true;
+  }
+  if(req.method==='POST'&&route==='/import/invoices'){
+   if(!requirePermission(user,res,'manage_finance'))return true;
+   const d=await body(req);let parsed;try{parsed=parseCSV(d.csv,{maxRows:2000})}catch(error){fail(res,400,error.message);return true}
+   const groups=new Map();
+   parsed.rows.forEach((row,index)=>{const number=clean(row.number,50);if(!number)return;if(!groups.has(number))groups.set(number,{firstRow:index+2,rows:[]});groups.get(number).rows.push(row)});
+   let imported=0,skipped=0;const errors=[];
+   const findClient=db.prepare('SELECT id FROM clients WHERE organization_id=? AND email=?'),createClient=db.prepare(`INSERT INTO clients(tenant_id,organization_id,name,email,created_at) VALUES(?,?,?,?,?)`),createInvoice=db.prepare(`INSERT INTO invoices(tenant_id,organization_id,number,client_id,issue_date,due_date,tax_rate,discount,notes,payment_details,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`),createItem=db.prepare('INSERT INTO invoice_items(invoice_id,description,quantity,rate,unit) VALUES(?,?,?,?,?)');
+   for(const [number,group] of groups){
+    try{
+     const first=group.rows[0],issue=date(first.issueDate),due=date(first.dueDate),taxRate=Number(first.taxRate||0),discount=money(first.discount||0),clientEmail=first.clientEmail?email(first.clientEmail):'';
+     if(!issue||!due||due<issue||!clientEmail||!Number.isFinite(taxRate)||taxRate<0||taxRate>100||Number.isNaN(discount))throw new Error('Missing or invalid invoice fields');
+     const items=group.rows.map(r=>({description:clean(r.itemDescription,300),qty:Number(r.itemQty),unit:clean(r.itemUnit,30),rate:money(r.itemRate)}));
+     if(!items.length||items.some(i=>!i.description||!Number.isFinite(i.qty)||i.qty<=0||Number.isNaN(i.rate)))throw new Error('Every line item needs a valid description, quantity and rate');
+     let clientCreated=false;
+     transaction(()=>{
+      let client=findClient.get(user.organization_id,clientEmail);
+      if(!client){client={id:Number(createClient.run(user.tenant_id,user.organization_id,clientEmail.split('@')[0],clientEmail,now()).lastInsertRowid)};clientCreated=true}
+      const invoiceId=Number(createInvoice.run(user.tenant_id,user.organization_id,number,client.id,issue,due,taxRate,discount,clean(first.notes,1000),clean(first.paymentDetails,1000),now()).lastInsertRowid);
+      for(const item of items)createItem.run(invoiceId,item.description,item.qty,item.rate,item.unit);
+     });
+     imported++;if(clientCreated)errors.push({row:group.firstRow,reason:`No matching client -- created a new client for ${clientEmail}`});
+    }catch(error){errors.push({row:group.firstRow,reason:error.message.includes('UNIQUE')?'Duplicate invoice number':error.message});skipped++}
+   }
+   audit(user,'imported','invoice',null,{imported,skipped},ip);send(res,201,{imported,skipped,errors});return true;
+  }
   match=route.match(/^\/bank-transactions\/([^/]+)\/match$/);
   if(match&&req.method==='POST'){if(!requirePermission(user,res,'manage_finance'))return true;const d=await body(req),matchedType=clean(d.matchedType,30),matchedId=clean(d.matchedId,80);if(!['invoice','expense','payroll_run','other'].includes(matchedType)||!matchedId){fail(res,400,'Invalid match');return true}const result=db.prepare(`UPDATE bank_transactions SET status='matched',matched_type=?,matched_id=? WHERE id=? AND organization_id=?`).run(matchedType,matchedId,match[1],user.organization_id);if(!result.changes){fail(res,404,'Transaction not found');return true}audit(user,'matched','bank_transaction',match[1],{matchedType,matchedId},ip);send(res,200,{ok:true});return true;}
   if(req.method==='POST'&&route==='/accounts'){if(!requirePermission(user,res,'manage_finance'))return true;const d=await body(req),code=clean(d.code,20),name=clean(d.name,120),type=clean(d.type,20);if(!code||!name||!['asset','liability','equity','revenue','expense'].includes(type)){fail(res,400,'Account code, name and valid type are required');return true}const accountId=id();try{db.prepare(`INSERT INTO chart_accounts(id,tenant_id,organization_id,code,name,type,created_at) VALUES(?,?,?,?,?,?,?)`).run(accountId,user.tenant_id,user.organization_id,code,name,type,now())}catch{fail(res,409,'Account code already exists');return true}audit(user,'created','account',accountId,{code,name,type},ip);send(res,201,{id:accountId});return true;}
