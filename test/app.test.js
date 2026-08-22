@@ -11,6 +11,7 @@ const {totp} = require('../security');
 const {assertSafeOutboundUrl,privateAddress} = require('../network-security');
 const {encryptBackup,decryptBackup} = require('../operations');
 const {validatePassword} = require('../password-policy');
+const {parseCSV} = require('../csv');
 
 test('password policy enforces length, character diversity and common-password rejection',()=>{
  assert.equal(validatePassword('Ab1!aaaa').ok,false);
@@ -20,6 +21,18 @@ test('password policy enforces length, character diversity and common-password r
  assert.equal(validatePassword('Password123!').ok,false);
  assert.match(validatePassword('Password123!').reason,/too common/);
  assert.equal(validatePassword('A-secure-password9').ok,true);
+});
+
+test('CSV parser handles quoting, embedded commas and blank lines',()=>{
+ const parsed=parseCSV('name,note\n"Acme, Inc.","Says ""hello"""\n\nSolo,\n');
+ assert.deepEqual(parsed.headers,['name','note']);
+ assert.equal(parsed.rows.length,2);
+ assert.equal(parsed.rows[0].name,'Acme, Inc.');
+ assert.equal(parsed.rows[0].note,'Says "hello"');
+ assert.equal(parsed.rows[1].name,'Solo');
+ assert.equal(parsed.rows[1].note,'');
+ assert.deepEqual(parseCSV('').rows,[]);
+ assert.throws(()=>parseCSV('a\n1\n2\n3\n',{maxRows:2}),/maximum/);
 });
 
 test('outbound URL policy blocks local and private networks',async()=>{
@@ -152,6 +165,13 @@ async function coreFlow(t,databaseUrl=''){
  assert.equal((await request(`/api/expenses/${expense.data.id}`,{cookie:first.cookie,method:'PUT',body:JSON.stringify({reference:'BILL-0001',vendor:'Cloud Co',category:'Software',date:'2026-08-15',due:'2026-08-20',amount:300,status:'paid',notes:'Updated hosting'})})).response.status,200);
  const firstData=await request('/api/bootstrap',{cookie:first.cookie});assert.equal(firstData.data.clients.length,1);assert.equal(firstData.data.clients[0].name,'Client One Updated');assert.equal(firstData.data.invoices.length,2,'original invoice plus the one converted from the accepted quote');const originalInvoice=firstData.data.invoices.find(i=>i.number==='INV-0001');assert.equal(originalInvoice.taxRate,15);assert.equal(originalInvoice.items[0].description,'Design updated');assert.equal(originalInvoice.items[0].unit,'hours');assert.equal(firstData.data.expenses.length,1);assert.equal(firstData.data.expenses[0].amount,300);
  const isolated=await request('/api/bootstrap',{cookie:second.cookie});assert.equal(isolated.data.clients.length,0);assert.equal(isolated.data.invoices.length,0);assert.equal(isolated.data.quotes.length,0);assert.equal(isolated.data.expenses.length,0);
+ const clientsCsv='name,email,address,vatNumber\nImported Co,imported@example.com,"1 Long St, Cape Town",4987654321\n,missing-name@example.com,,\n';
+ const clientsImport=await request('/api/enterprise/import/clients',{cookie:first.cookie,method:'POST',body:JSON.stringify({csv:clientsCsv})});assert.equal(clientsImport.response.status,201);assert.equal(clientsImport.data.imported,1);assert.equal(clientsImport.data.skipped,1);assert.equal(clientsImport.data.errors[0].row,3);
+ const expensesCsv='reference,vendor,category,date,due,amount,status,notes\nBILL-0002,Office Supplies Co,Office,2026-08-16,2026-08-25,120,due,Stationery\nBILL-0001,Cloud Co,Software,2026-08-15,2026-08-20,999,due,Duplicate reference\n';
+ const expensesImport=await request('/api/enterprise/import/expenses',{cookie:first.cookie,method:'POST',body:JSON.stringify({csv:expensesCsv})});assert.equal(expensesImport.response.status,201);assert.equal(expensesImport.data.imported,1);assert.equal(expensesImport.data.skipped,1);assert.match(expensesImport.data.errors[0].reason,/Duplicate reference/);
+ const invoicesCsv='number,clientEmail,issueDate,dueDate,taxRate,discount,notes,paymentDetails,itemDescription,itemQty,itemUnit,itemRate\nINV-9001,newclient@example.com,2026-08-16,2026-08-30,15,0,Imported,EFT,Consulting,3,hours,900\nINV-9001,newclient@example.com,2026-08-16,2026-08-30,15,0,Imported,EFT,Travel,1,trip,500\n';
+ const invoicesImport=await request('/api/enterprise/import/invoices',{cookie:first.cookie,method:'POST',body:JSON.stringify({csv:invoicesCsv})});assert.equal(invoicesImport.response.status,201);assert.equal(invoicesImport.data.imported,1);assert.equal(invoicesImport.data.skipped,0);assert.match(invoicesImport.data.errors[0].reason,/created a new client/);
+ const afterImport=await request('/api/bootstrap',{cookie:first.cookie});assert.equal(afterImport.data.clients.length,3,'original + imported + auto-created client');assert.equal(afterImport.data.expenses.length,2);const importedInvoice=afterImport.data.invoices.find(i=>i.number==='INV-9001');assert.ok(importedInvoice);assert.equal(importedInvoice.items.length,2);assert.equal(importedInvoice.items[0].unit,'hours');
  const enterprise=await request('/api/enterprise/summary',{cookie:first.cookie});assert.equal(enterprise.data.role,'owner');assert.equal(enterprise.data.organizations.length,1);const primaryOrg=enterprise.data.activeOrganizationId;
  const newOrg=await request('/api/enterprise/organizations',{cookie:first.cookie,method:'POST',body:JSON.stringify({name:'Acme Holdings',currency:'ZAR'})});assert.equal(newOrg.response.status,201);assert.equal((await request('/api/enterprise/organizations/switch',{cookie:first.cookie,method:'POST',body:JSON.stringify({organizationId:newOrg.data.id})})).response.status,200);const holdingData=await request('/api/bootstrap',{cookie:first.cookie});assert.equal(holdingData.data.clients.length,0);const holdingClient=await request('/api/clients',{cookie:first.cookie,method:'POST',body:JSON.stringify({name:'Holding Client',email:'holding@example.com'})});assert.equal(holdingClient.response.status,201);const duplicateNumberDifferentOrg=await request('/api/invoices',{cookie:first.cookie,method:'POST',body:JSON.stringify({number:'INV-0001',clientId:holdingClient.data.id,issue:'2026-08-15',due:'2026-08-30',taxRate:0,discount:0,items:[{description:'Advisory',qty:1,rate:5000}]})});assert.equal(duplicateNumberDifferentOrg.response.status,201);assert.equal((await request('/api/enterprise/organizations/switch',{cookie:first.cookie,method:'POST',body:JSON.stringify({organizationId:primaryOrg})})).response.status,200);
  const invitation=await request('/api/enterprise/invitations',{cookie:first.cookie,method:'POST',body:JSON.stringify({email:'other@example.com',role:'approver'})});assert.equal(invitation.response.status,201);assert.ok(invitation.data.inviteToken);assert.equal((await request('/api/enterprise/invitations/accept',{cookie:second.cookie,method:'POST',body:JSON.stringify({token:invitation.data.inviteToken})})).response.status,200);const invitedSummary=await request('/api/enterprise/summary',{cookie:second.cookie});assert.equal(invitedSummary.data.role,'approver');const forbidden=await request('/api/clients',{cookie:second.cookie,method:'POST',body:JSON.stringify({name:'Forbidden'})});assert.equal(forbidden.response.status,403);
