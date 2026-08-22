@@ -104,6 +104,7 @@ function loadEnv() {
 function validateProductionConfig(){
  if(process.env.NODE_ENV!=='production')return;
  const errors=[];
+ if(!process.env.DATABASE_URL)errors.push('DATABASE_URL must be set in production (refusing to fall back to local SQLite)');
  if(String(process.env.SESSION_SECRET||'').length<32)errors.push('SESSION_SECRET must contain at least 32 characters');
  if(String(process.env.INTEGRATION_ENCRYPTION_KEY||'').length<32)errors.push('INTEGRATION_ENCRYPTION_KEY must contain at least 32 characters');
  try{if(new URL(process.env.APP_ORIGIN||'').protocol!=='https:')errors.push('APP_ORIGIN must be an HTTPS origin')}catch{errors.push('APP_ORIGIN must be a valid HTTPS origin')}
