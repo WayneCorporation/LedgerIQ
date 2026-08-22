@@ -281,6 +281,19 @@
             </div>
             <div class="settings-actions"><span id="settingsSaved" aria-live="polite"></span><button class="primary-button" type="submit">Save changes</button></div>
           </article>
+          <article class="panel settings-card">
+            <div class="panel-heading"><div><h2>Invoice template</h2><p>Pick a layout and accent for invoices and quotes.</p></div></div>
+            <div class="template-swatches">
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="classic" checked /><span>Classic</span></label>
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="modern" /><span>Modern</span></label>
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="minimal" /><span>Minimal</span></label>
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="bold" /><span>Bold</span></label>
+            </div>
+            <div class="settings-form-grid">
+              <label>Accent color<input id="invoiceAccentColor" type="color" value="#5b5fef" /></label>
+              <label>Font<select id="invoiceFontSelect"><option value="sans">Sans-serif</option><option value="serif">Serif</option><option value="mono">Monospace</option></select></label>
+            </div>
+          </article>
           <article class="panel settings-card subscription-card">
             <div class="panel-heading"><div><h2>ledgerIQ Business</h2><p>Complete finance operations for growing businesses.</p></div><strong>R599/month</strong></div>
             <p id="subscriptionStatus">30-day free trial</p><div class="settings-actions"><button class="secondary-button" id="monthlyBilling" type="button">Monthly · R599</button><button class="primary-button" id="annualBilling" type="button">Annual · R5,990</button></div>
