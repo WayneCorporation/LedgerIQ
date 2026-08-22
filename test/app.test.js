@@ -72,9 +72,9 @@ test('data retention purge deletes only tenants that opted in and are actually p
  async function cancelViaWebhook(email){const body=JSON.stringify({email,status:'cancelled'}),signature=crypto.createHmac('sha256',webhookSecret).update(body).digest('hex');const result=await fetch(origin+'/api/billing/webhook',{method:'POST',headers:{'Content-Type':'application/json','x-ledgeriq-signature':signature},body});assert.equal(result.status,200)}
  async function reactivateViaWebhook(email){const body=JSON.stringify({email,status:'active'}),signature=crypto.createHmac('sha256',webhookSecret).update(body).digest('hex');const result=await fetch(origin+'/api/billing/webhook',{method:'POST',headers:{'Content-Type':'application/json','x-ledgeriq-signature':signature},body});assert.equal(result.status,200)}
 
- const purged=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'purged@example.com',password:'a-secure-password',companyName:'Purged Co',ownerName:'Pat Purged'})});assert.equal(purged.response.status,201);
- const survivorDefault=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'survivor-default@example.com',password:'a-secure-password',companyName:'Survivor Default Co',ownerName:'Sam Survivor'})});assert.equal(survivorDefault.response.status,201);
- const survivorReactivated=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'survivor-reactivated@example.com',password:'a-secure-password',companyName:'Survivor Reactivated Co',ownerName:'Robin Survivor'})});assert.equal(survivorReactivated.response.status,201);
+ const purged=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'purged@example.com',password:'A-secure-password9',companyName:'Purged Co',ownerName:'Pat Purged'})});assert.equal(purged.response.status,201);
+ const survivorDefault=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'survivor-default@example.com',password:'A-secure-password9',companyName:'Survivor Default Co',ownerName:'Sam Survivor'})});assert.equal(survivorDefault.response.status,201);
+ const survivorReactivated=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'survivor-reactivated@example.com',password:'A-secure-password9',companyName:'Survivor Reactivated Co',ownerName:'Robin Survivor'})});assert.equal(survivorReactivated.response.status,201);
 
  const invalidRetention=await request('/api/profile',{cookie:purged.cookie,method:'PUT',body:JSON.stringify({companyName:'Purged Co',ownerName:'Pat Purged',email:'purged@example.com',currency:'ZAR',retentionDays:5})});assert.equal(invalidRetention.response.status,400,'only the fixed retention presets are valid');
 
@@ -108,8 +108,8 @@ test('phone/SMS OTP: enrollment and login second factor work end-to-end against 
  await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('otp server start timeout')),5000);child.stdout.on('data',data=>{if(String(data).includes('ledgerIQ running')){clearTimeout(timer);resolve()}});child.on('exit',code=>reject(new Error(`otp server exited ${code}`)))});
  async function request(route,{cookie,...options}={}){const response=await fetch(origin+route,{...options,headers:{'Content-Type':'application/json',Origin:origin,...(cookie?{Cookie:cookie}:{}),...(options.headers||{})}}),data=await response.json().catch(()=>({}));return{response,data,cookie:response.headers.get('set-cookie')?.split(';')[0]}}
 
- const registered=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password',companyName:'Phone Co',ownerName:'Pat Phone'})});assert.equal(registered.response.status,201);
- const plainLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password'})});assert.equal(plainLogin.response.status,200);assert.equal(plainLogin.data.otpRequired,undefined,'OTP must not be required before it is enabled');
+ const registered=await request('/api/auth/register',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'A-secure-password9',companyName:'Phone Co',ownerName:'Pat Phone'})});assert.equal(registered.response.status,201);
+ const plainLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'A-secure-password9'})});assert.equal(plainLogin.response.status,200);assert.equal(plainLogin.data.otpRequired,undefined,'OTP must not be required before it is enabled');
 
  const setup=await request('/api/security/phone/setup',{cookie:registered.cookie,method:'POST',body:JSON.stringify({phone:'+27821234567'})});assert.equal(setup.response.status,200);
  assert.equal(sentMessages.length,1);assert.equal(sentMessages[0].to,'+27821234567');
@@ -117,7 +117,7 @@ test('phone/SMS OTP: enrollment and login second factor work end-to-end against 
  const enable=await request('/api/security/phone/enable',{cookie:registered.cookie,method:'POST',body:JSON.stringify({code:latestCode()})});assert.equal(enable.response.status,200);
  const statusAfterEnable=await request('/api/security/status',{cookie:registered.cookie});assert.equal(statusAfterEnable.data.smsOtpEnabled,1);assert.ok(statusAfterEnable.data.phoneVerifiedAt);
 
- const gatedLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password'})});assert.equal(gatedLogin.response.status,200);assert.equal(gatedLogin.data.otpRequired,true);assert.ok(gatedLogin.data.challengeId);assert.equal(gatedLogin.cookie,undefined,'no session cookie until the OTP step also succeeds');
+ const gatedLogin=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'A-secure-password9'})});assert.equal(gatedLogin.response.status,200);assert.equal(gatedLogin.data.otpRequired,true);assert.ok(gatedLogin.data.challengeId);assert.equal(gatedLogin.cookie,undefined,'no session cookie until the OTP step also succeeds');
  assert.equal(sentMessages.length,2);
 
  const wrongVerify=await request('/api/auth/otp/verify',{method:'POST',body:JSON.stringify({challengeId:gatedLogin.data.challengeId,code:'000000'})});assert.equal(wrongVerify.response.status,401);
@@ -126,8 +126,8 @@ test('phone/SMS OTP: enrollment and login second factor work end-to-end against 
 
  const replay=await request('/api/auth/otp/verify',{method:'POST',body:JSON.stringify({challengeId:gatedLogin.data.challengeId,code:latestCode()})});assert.equal(replay.response.status,401,'a consumed OTP code must not be replayable');
 
- const disable=await request('/api/security/phone/disable',{cookie:verify.cookie,method:'POST',body:JSON.stringify({password:'a-secure-password'})});assert.equal(disable.response.status,200);
- const loginAfterDisable=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'a-secure-password'})});assert.equal(loginAfterDisable.response.status,200);assert.equal(loginAfterDisable.data.otpRequired,undefined,'disabling SMS OTP must remove the login gate');
+ const disable=await request('/api/security/phone/disable',{cookie:verify.cookie,method:'POST',body:JSON.stringify({password:'A-secure-password9'})});assert.equal(disable.response.status,200);
+ const loginAfterDisable=await request('/api/auth/login',{method:'POST',body:JSON.stringify({email:'phoneowner@example.com',password:'A-secure-password9'})});assert.equal(loginAfterDisable.response.status,200);assert.equal(loginAfterDisable.data.otpRequired,undefined,'disabling SMS OTP must remove the login gate');
 });
 
 async function coreFlow(t,databaseUrl=''){
