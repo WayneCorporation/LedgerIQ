@@ -42,6 +42,9 @@
         <button class="nav-item" data-view="invoices">
           <span class="nav-icon">▤</span><span>Invoices</span><span class="nav-count" id="navInvoiceCount">5</span>
         </button>
+        <button class="nav-item" data-view="quotes">
+          <span class="nav-icon">✎</span><span>Quotes</span><span class="nav-count" id="navQuoteCount">0</span>
+        </button>
         <button class="nav-item" data-view="expenses">
           <span class="nav-icon">↙</span><span>Expenses</span><span class="nav-count" id="navExpenseCount">0</span>
         </button>
@@ -174,6 +177,20 @@
         </article>
       </section>
 
+      <section class="view" id="quotesView">
+        <div class="page-heading compact">
+          <div><p class="eyebrow">SALES</p><h1>Quotes</h1><p>Draft estimates for prospective work and convert them to invoices once accepted.</p></div>
+          <button class="primary-button" id="newQuotePage">＋ New quote</button>
+        </div>
+        <article class="panel list-panel">
+          <div class="toolbar">
+            <div class="filter-tabs" id="quoteFilters"><button class="active" data-filter="all">All</button><button data-filter="draft">Draft</button><button data-filter="sent">Sent</button><button data-filter="accepted">Accepted</button><button data-filter="declined">Declined</button><button data-filter="expired">Expired</button></div>
+            <input class="table-search" id="quoteSearch" placeholder="Filter quotes…" />
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Quote</th><th>Client</th><th>Issued</th><th>Valid until</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="allQuoteRows"></tbody></table></div>
+        </article>
+      </section>
+
       <section class="view" id="clientsView">
         <div class="page-heading compact">
           <div><p class="eyebrow">CONTACTS</p><h1>Clients</h1><p>Keep the people and businesses you bill close at hand.</p></div>
@@ -300,6 +317,28 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="quoteModal" aria-hidden="true">
+    <div class="modal invoice-modal" role="dialog" aria-modal="true" aria-labelledby="quoteModalTitle">
+      <div class="modal-header"><div><p class="eyebrow">NEW DOCUMENT</p><h2 id="quoteModalTitle">Create quote</h2></div><button class="close-modal" data-close="quoteModal">×</button></div>
+      <form id="quoteForm">
+        <div class="form-grid">
+          <label>Client<select id="quoteClient" required></select></label>
+          <label>Quote number<input id="quoteNumber" required /></label>
+          <label>Issue date<input id="quoteIssueDate" type="date" required /></label>
+          <label>Valid until<input id="quoteExpiryDate" type="date" required /></label>
+          <label>Tax rate (%)<input id="quoteTaxRate" type="number" min="0" max="100" step="0.01" value="0" /></label>
+          <label>Discount amount<input id="quoteDiscount" type="number" min="0" step="0.01" value="0" /></label>
+        </div>
+        <div class="line-heading"><h3>Line items</h3><button type="button" class="text-button" id="addQuoteLine">＋ Add line</button></div>
+        <div class="line-items" id="quoteLineItems"></div>
+        <datalist id="unitPresets"><option value="hours"><option value="items"><option value="kg"><option value="days"><option value="units"></datalist>
+        <label class="notes-label">Notes<textarea id="quoteNotes" placeholder="Scope notes, assumptions, or validity terms…"></textarea></label>
+        <label class="notes-label">Payment details<textarea id="quotePaymentDetails" placeholder="Bank details or payment instructions"></textarea></label>
+        <div class="invoice-form-foot"><div class="form-total"><span>Total</span><strong id="quoteFormTotal">€0.00</strong></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="quoteModal">Cancel</button><button type="submit" class="primary-button">Create quote</button></div></div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="clientModal" aria-hidden="true">
     <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="clientModalTitle">
       <div class="modal-header"><div><p class="eyebrow">NEW CONTACT</p><h2 id="clientModalTitle">Add client</h2></div><button class="close-modal" data-close="clientModal">×</button></div>
@@ -317,6 +356,13 @@
     <div class="modal preview-modal" role="dialog" aria-modal="true">
       <div class="preview-actions"><button class="secondary-button" data-close="previewModal">Close</button><button class="primary-button" id="printInvoice">⇩ Save as PDF</button></div>
       <div class="invoice-paper" id="invoicePaper"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="quotePreviewModal" aria-hidden="true">
+    <div class="modal preview-modal" role="dialog" aria-modal="true">
+      <div class="preview-actions"><button class="secondary-button" data-close="quotePreviewModal">Close</button><button class="primary-button" id="printQuote">⇩ Save as PDF</button></div>
+      <div class="invoice-paper" id="quotePaper"></div>
     </div>
   </div>
 
