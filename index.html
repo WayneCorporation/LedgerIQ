@@ -11,7 +11,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <section class="auth-screen" id="authScreen">
+  <div class="app-loading" id="appLoading"><div class="spinner"></div></div>
+  <section class="auth-screen" id="authScreen" hidden>
     <div class="auth-brand"><span class="brand-mark"><span></span><span></span><span></span></span><strong>ledgerIQ</strong></div>
     <div class="auth-card">
       <p class="eyebrow">30-DAY FREE TRIAL</p><h1 id="authTitle">Welcome back</h1><p id="authIntro">Sign in to your invoicing workspace.</p>
@@ -464,7 +465,7 @@
 
   <div class="modal-backdrop" id="invoiceModal" aria-hidden="true">
     <div class="modal invoice-modal" role="dialog" aria-modal="true" aria-labelledby="invoiceModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">NEW DOCUMENT</p><h2 id="invoiceModalTitle">Create invoice</h2></div><button class="close-modal" data-close="invoiceModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">NEW DOCUMENT</p><h2 id="invoiceModalTitle">Create invoice</h2></div><button class="close-modal" data-close="invoiceModal" aria-label="Close">×</button></div>
       <form id="invoiceForm">
         <div class="form-grid">
           <label>Client<select id="invoiceClient" required></select></label>
@@ -486,7 +487,7 @@
 
   <div class="modal-backdrop" id="quoteModal" aria-hidden="true">
     <div class="modal invoice-modal" role="dialog" aria-modal="true" aria-labelledby="quoteModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">NEW DOCUMENT</p><h2 id="quoteModalTitle">Create quote</h2></div><button class="close-modal" data-close="quoteModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">NEW DOCUMENT</p><h2 id="quoteModalTitle">Create quote</h2></div><button class="close-modal" data-close="quoteModal" aria-label="Close">×</button></div>
       <form id="quoteForm">
         <div class="form-grid">
           <label>Client<select id="quoteClient" required></select></label>
@@ -507,7 +508,7 @@
 
   <div class="modal-backdrop" id="clientModal" aria-hidden="true">
     <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="clientModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">NEW CONTACT</p><h2 id="clientModalTitle">Add client</h2></div><button class="close-modal" data-close="clientModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">NEW CONTACT</p><h2 id="clientModalTitle">Add client</h2></div><button class="close-modal" data-close="clientModal" aria-label="Close">×</button></div>
       <form id="clientForm">
         <label>Company or client name<input id="clientName" required placeholder="Acme Studio" /></label>
         <label>Email address<input id="clientEmail" type="email" required placeholder="hello@acme.com" /></label>
@@ -562,7 +563,7 @@
 
   <div class="modal-backdrop" id="paymentModal" aria-hidden="true">
     <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">PAYMENT</p><h2 id="paymentModalTitle">Record payment details</h2></div><button class="close-modal" data-close="paymentModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">PAYMENT</p><h2 id="paymentModalTitle">Record payment details</h2></div><button class="close-modal" data-close="paymentModal" aria-label="Close">×</button></div>
       <form id="paymentForm">
         <label>Amount<input id="paymentAmount" type="number" min="0.01" step="0.01" required /></label>
         <label>Date paid<input id="paymentDate" type="date" required /></label>
@@ -576,7 +577,7 @@
 
   <div class="modal-backdrop" id="sendDocumentModal" aria-hidden="true">
     <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="sendDocumentTitle">
-      <div class="modal-header"><div><p class="eyebrow">EMAIL</p><h2 id="sendDocumentTitle">Send to client</h2></div><button class="close-modal" data-close="sendDocumentModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">EMAIL</p><h2 id="sendDocumentTitle">Send to client</h2></div><button class="close-modal" data-close="sendDocumentModal" aria-label="Close">×</button></div>
       <p>Send <strong id="sendDocumentNumber"></strong> to <strong id="sendDocumentEmail"></strong>?</p>
       <div class="modal-actions"><button type="button" class="secondary-button" data-close="sendDocumentModal">Cancel</button><button class="primary-button" id="confirmSendDocument">Send</button></div>
     </div>
@@ -584,7 +585,7 @@
 
   <div class="modal-backdrop" id="newOrgModal" aria-hidden="true">
     <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="newOrgModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">NEW COMPANY</p><h2 id="newOrgModalTitle">Create a company</h2></div><button class="close-modal" data-close="newOrgModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">NEW COMPANY</p><h2 id="newOrgModalTitle">Create a company</h2></div><button class="close-modal" data-close="newOrgModal" aria-label="Close">×</button></div>
       <form id="newOrgForm">
         <label>Company name<input id="newOrgName" required placeholder="Acme Studio" /></label>
         <details class="progressive-fields">
@@ -600,7 +601,7 @@
 
   <div class="modal-backdrop" id="expenseModal" aria-hidden="true">
     <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="expenseModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">MONEY OUT</p><h2 id="expenseModalTitle">Add expense or bill</h2></div><button class="close-modal" data-close="expenseModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">MONEY OUT</p><h2 id="expenseModalTitle">Add expense or bill</h2></div><button class="close-modal" data-close="expenseModal" aria-label="Close">×</button></div>
       <form id="expenseForm">
         <div class="form-grid">
           <label>Supplier<input id="expenseVendor" required placeholder="Supplier name" /></label>
@@ -619,7 +620,7 @@
 
   <div class="modal-backdrop" id="supportModal" aria-hidden="true">
     <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="supportModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">WE'RE HERE TO HELP</p><h2 id="supportModalTitle">Contact support</h2></div><button class="close-modal" data-close="supportModal">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">WE'RE HERE TO HELP</p><h2 id="supportModalTitle">Contact support</h2></div><button class="close-modal" data-close="supportModal" aria-label="Close">×</button></div>
       <form id="supportForm">
         <label>Your email<input id="supportEmail" type="email" required placeholder="you@company.com" /></label>
         <label>How can we help?<textarea id="supportMessage" required rows="5" placeholder="Tell us what you're having trouble with..."></textarea></label>
