@@ -9,6 +9,7 @@ const { initEnterprise } = require('./enterprise');
 const { initSecurity } = require('./security');
 const { reportError,checkMonitoring,uploadBackup,operationalState } = require('./operations');
 const { validatePassword } = require('./password-policy');
+const { renderDocumentPdf } = require('./pdf');
 
 loadEnv();
 validateProductionConfig();
@@ -149,6 +150,8 @@ function createSession(res,userId) { const raw=token(),created=now(),expires=new
 const INVOICE_TEMPLATES=['classic','modern','minimal','bold'];
 const INVOICE_FONTS=['sans','serif','mono'];
 const RETENTION_DAY_OPTIONS=[-1,0,30,90,180,365,1825];
+const FREE_EMAIL_DOMAINS=new Set(['gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com','aol.com','protonmail.com','gmx.com','mail.com','yandex.com','live.com','msn.com']);
+function emailDomain(addr){const at=addr.lastIndexOf('@');return at>=0?addr.slice(at+1).toLowerCase():''}
 function profile(tenantId,organizationId) { return db.prepare(`SELECT o.name companyName,t.owner_name ownerName,o.email,o.phone,o.registration_number taxId,o.vat_number vatNumber,o.address,o.currency,o.logo,o.invoice_template_id invoiceTemplateId,o.invoice_accent_color invoiceAccentColor,o.invoice_font invoiceFont,t.subscription_status subscriptionStatus,t.trial_ends_at trialEndsAt,t.data_retention_days dataRetentionDays FROM organizations o JOIN tenants t ON t.id=o.tenant_id WHERE o.id=? AND o.tenant_id=?`).get(organizationId,tenantId); }
 function invoiceRows(tenantId,organizationId) { const rows=db.prepare(`SELECT id,number,client_id clientId,issue_date issue,due_date due,status,tax_rate taxRate,discount,notes,payment_details paymentDetails,sent_at sentAt,paid_date paidDate,(SELECT COALESCE(SUM(amount),0) FROM payments WHERE subject_type='invoice' AND subject_id=invoices.id) amountPaid FROM invoices WHERE tenant_id=? AND organization_id=? ORDER BY issue_date DESC,id DESC`).all(tenantId,organizationId);const items=db.prepare('SELECT description,quantity qty,unit,rate FROM invoice_items WHERE invoice_id=? ORDER BY id');return rows.map(r=>({...r,items:items.all(r.id)})); }
 function bootstrap(tenantId,organizationId) { db.prepare(`UPDATE invoices SET status='overdue' WHERE tenant_id=? AND organization_id=? AND status='sent' AND due_date<?`).run(tenantId,organizationId,now().slice(0,10));db.prepare(`UPDATE expenses SET status='overdue' WHERE tenant_id=? AND organization_id=? AND status='due' AND due_date<?`).run(tenantId,organizationId,now().slice(0,10));db.prepare(`UPDATE quotes SET status='expired' WHERE tenant_id=? AND organization_id=? AND status='sent' AND expiry_date<?`).run(tenantId,organizationId,now().slice(0,10));return {profile:profile(tenantId,organizationId),clients:db.prepare('SELECT id,name,email,address,vat_number vatNumber,color FROM clients WHERE tenant_id=? AND organization_id=? ORDER BY name').all(tenantId,organizationId),invoices:invoiceRows(tenantId,organizationId),quotes:quoteRows(tenantId,organizationId),expenses:db.prepare(`SELECT id,reference,vendor,category,expense_date date,due_date due,amount,status,paid_date paidDate,notes,(SELECT COALESCE(SUM(amount),0) FROM payments WHERE subject_type='expense' AND subject_id=expenses.id) amountPaid FROM expenses WHERE tenant_id=? AND organization_id=? ORDER BY expense_date DESC,id DESC`).all(tenantId,organizationId)}; }
@@ -165,7 +168,7 @@ function quoteTotal(quote) { const subtotal=quote.items.reduce((s,i)=>s+Number(i
 function quoteEmail(quote,client,p) { const rows=quote.items.map(i=>`<tr><td>${escapeHTML(i.description)}</td><td>${i.qty}${i.unit?` ${escapeHTML(i.unit)}`:''}</td><td>${i.rate.toFixed(2)}</td></tr>`).join('');return `<h1>Quote ${escapeHTML(quote.number)}</h1><p>From ${escapeHTML(p.companyName)}</p><p>Valid until ${escapeHTML(quote.expiry)}</p><table><tr><th>Description</th><th>Qty</th><th>Rate</th></tr>${rows}</table><h2>Total: ${escapeHTML(p.currency)} ${quoteTotal(quote).toFixed(2)}</h2><p>${escapeHTML(quote.paymentDetails||quote.notes)}</p>`; }
 async function sendQuoteEmail(quote,client,p) { if(!process.env.RESEND_API_KEY||!process.env.MAIL_FROM)throw new Error('Email delivery is not configured');const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from:process.env.MAIL_FROM,to:[client.email],subject:`Quote ${quote.number} from ${p.companyName}`,html:quoteEmail(quote,client,p)})});if(!response.ok)throw new Error('Email provider rejected the message'); }
 
-const enterprise=initEnterprise(db,{send,fail,body,clean,now,id,email,hash,operationalState,clientIp,money,date,transaction});
+const enterprise=initEnterprise(db,{send,fail,body,clean,now,id,email,hash,operationalState,clientIp,money,date,transaction,profile});
 const security=initSecurity(db,{send,fail,body,clean,now,id,email,hash,passwordHash,passwordMatches});
 db.exec(`CREATE TABLE IF NOT EXISTS api_idempotency(id TEXT PRIMARY KEY,api_key_id TEXT NOT NULL,idempotency_hash TEXT NOT NULL,method TEXT NOT NULL,path TEXT NOT NULL,response_status INTEGER NOT NULL,response_body TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(api_key_id,idempotency_hash));`);
 if(process.env.INITIALIZE_DATABASE_ONLY==='true'){console.log(`ledgerIQ ${db.dialect} schema initialized`);db.close();process.exit(0)}
@@ -184,6 +187,10 @@ async function api(req,res,url) {
     const passwordCheck=validatePassword(password);
     if(!userEmail||!passwordCheck.ok||!company||!owner)return fail(res,400,!userEmail||!company||!owner?'Use a valid email and complete all fields':passwordCheck.reason);
     if(db.prepare('SELECT 1 FROM users WHERE email=?').get(userEmail))return fail(res,409,'An account with this email already exists');
+    const domain=emailDomain(userEmail);
+    if(!data.confirmNewWorkspace&&domain&&!FREE_EMAIL_DOMAINS.has(domain)&&db.prepare('SELECT 1 FROM users WHERE email LIKE ? LIMIT 1').get('%@'+domain)){
+      return send(res,200,{ok:false,domainWarning:true,message:`It looks like your organisation may already use ledgerIQ. If your business already has a workspace, ask an admin to invite you instead — registering here always creates a brand-new, empty workspace for "${company}".`});
+    }
     const tenantId=id(),userId=id(),created=now(),trial=new Date(Date.now()+30*86400000).toISOString();
     transaction(()=>{db.prepare(`INSERT INTO tenants(id,name,owner_name,email,address,currency,trial_ends_at,created_at) VALUES(?,?,?,?,?,'ZAR',?,?)`).run(tenantId,company,owner,userEmail,'',trial,created);db.prepare('INSERT INTO users(id,tenant_id,email,password_hash,created_at) VALUES(?,?,?,?,?)').run(userId,tenantId,userEmail,passwordHash(password),created);enterprise.createPrimaryOrganization(tenantId,userId,{companyName:company,email:userEmail})});
     const verification=await security.sendVerification(userId,userEmail);
@@ -244,6 +251,13 @@ async function api(req,res,url) {
   let match=url.pathname.match(/^\/api\/clients\/(\d+)$/);
   if(match&&req.method==='PUT'){if(!enterprise.requirePermission(user,res,'manage_finance'))return;const d=await body(req),name=clean(d.name,150),clientEmail=d.email?email(d.email):'';if(!name||(d.email&&!clientEmail))return fail(res,400,'Enter a valid client name and email');const result=db.prepare(`UPDATE clients SET name=?,email=?,address=?,vat_number=? WHERE tenant_id=? AND organization_id=? AND id=?`).run(name,clientEmail,clean(d.address,500),clean(d.vatNumber,80),user.tenant_id,user.organization_id,match[1]);if(!result.changes)return fail(res,404,'Client not found');enterprise.audit(user,'updated','client',match[1],{name},clientIp(req));return send(res,200,{ok:true});}
   if(match&&req.method==='DELETE'){if(!enterprise.requirePermission(user,res,'manage_finance'))return;const used=db.prepare('SELECT 1 FROM invoices WHERE tenant_id=? AND organization_id=? AND client_id=?').get(user.tenant_id,user.organization_id,match[1]);if(used)return fail(res,409,'Delete this client’s invoices first');db.prepare('DELETE FROM clients WHERE tenant_id=? AND organization_id=? AND id=?').run(user.tenant_id,user.organization_id,match[1]);enterprise.audit(user,'deleted','client',match[1],{},clientIp(req));return send(res,200,{ok:true});}
+  match=url.pathname.match(/^\/api\/invoices\/(\d+)\/pdf$/);
+  if(match&&req.method==='GET'){
+    const invoice=invoiceRows(user.tenant_id,user.organization_id).find(i=>i.id===Number(match[1]));if(!invoice)return fail(res,404,'Invoice not found');
+    const client=db.prepare('SELECT * FROM clients WHERE id=? AND tenant_id=? AND organization_id=?').get(invoice.clientId,user.tenant_id,user.organization_id),p=profile(user.tenant_id,user.organization_id);
+    res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${invoice.number.replace(/["\r\n]/g,'_')}.pdf"`,'Cache-Control':'private, no-store'});
+    return renderDocumentPdf(res,{kind:'INVOICE',number:invoice.number,issueDate:invoice.issue,secondaryLabel:'Due',secondaryDate:invoice.due,status:invoice.status,company:p,party:{label:'Bill to',...client},items:invoice.items,discount:invoice.discount,taxRate:invoice.taxRate,currency:p.currency,notes:invoice.notes,paymentDetails:invoice.paymentDetails});
+  }
   if(req.method==='POST'&&url.pathname==='/api/invoices'){
     if(!enterprise.requirePermission(user,res,'manage_finance'))return;const d=await body(req),number=clean(d.number,50),issue=date(d.issue),due=date(d.due),client=db.prepare('SELECT id FROM clients WHERE id=? AND tenant_id=? AND organization_id=?').get(Number(d.clientId),user.tenant_id,user.organization_id),taxRate=Number(d.taxRate||0),discount=money(d.discount||0);
     if(!number||!issue||!due||due<issue||!client||!Array.isArray(d.items)||!d.items.length||!Number.isFinite(taxRate)||taxRate<0||taxRate>100||Number.isNaN(discount))return fail(res,400,'Check the invoice details');
@@ -256,6 +270,13 @@ async function api(req,res,url) {
   if(match&&req.method==='POST'&&match[2]==='send'){
     if(!enterprise.requirePermission(user,res,'manage_finance'))return;const invoice=invoiceRows(user.tenant_id,user.organization_id).find(i=>i.id===Number(match[1]));if(!invoice)return fail(res,404,'Invoice not found');const client=db.prepare('SELECT * FROM clients WHERE id=? AND tenant_id=? AND organization_id=?').get(invoice.clientId,user.tenant_id,user.organization_id);if(!client.email)return fail(res,400,'Add an email address to this client first');
     try{await sendInvoiceEmail(invoice,client,profile(user.tenant_id,user.organization_id));db.prepare(`UPDATE invoices SET status='sent',sent_at=? WHERE id=? AND tenant_id=? AND organization_id=?`).run(now(),invoice.id,user.tenant_id,user.organization_id);enterprise.audit(user,'sent','invoice',invoice.id,{to:client.email},clientIp(req));postInvoiceRevenueJournal(user,invoice);enterprise.notify(user.user_id,user.tenant_id,user.organization_id,'Invoice sent',`Invoice ${invoice.number} was sent to ${client.email}.`,'invoices');return send(res,200,{ok:true});}catch(error){return fail(res,503,error.message);}
+  }
+  match=url.pathname.match(/^\/api\/quotes\/(\d+)\/pdf$/);
+  if(match&&req.method==='GET'){
+    const quote=quoteRows(user.tenant_id,user.organization_id).find(q=>q.id===Number(match[1]));if(!quote)return fail(res,404,'Quote not found');
+    const client=db.prepare('SELECT * FROM clients WHERE id=? AND tenant_id=? AND organization_id=?').get(quote.clientId,user.tenant_id,user.organization_id),p=profile(user.tenant_id,user.organization_id);
+    res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${quote.number.replace(/["\r\n]/g,'_')}.pdf"`,'Cache-Control':'private, no-store'});
+    return renderDocumentPdf(res,{kind:'QUOTE',number:quote.number,issueDate:quote.issue,secondaryLabel:'Valid until',secondaryDate:quote.expiry,status:quote.status,company:p,party:{label:'Prepared for',...client},items:quote.items,discount:quote.discount,taxRate:quote.taxRate,currency:p.currency,notes:quote.notes,paymentDetails:quote.paymentDetails});
   }
   if(req.method==='POST'&&url.pathname==='/api/quotes'){
     if(!enterprise.requirePermission(user,res,'manage_finance'))return;const d=await body(req),number=clean(d.number,50),issue=date(d.issue),expiry=date(d.expiry),client=db.prepare('SELECT id FROM clients WHERE id=? AND tenant_id=? AND organization_id=?').get(Number(d.clientId),user.tenant_id,user.organization_id),taxRate=Number(d.taxRate||0),discount=money(d.discount||0);

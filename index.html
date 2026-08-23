@@ -16,16 +16,33 @@
     <div class="auth-card">
       <p class="eyebrow">30-DAY FREE TRIAL</p><h1 id="authTitle">Welcome back</h1><p id="authIntro">Sign in to your invoicing workspace.</p>
       <form id="authForm">
-        <div id="registrationFields" hidden><label>Business name<input id="authCompany" autocomplete="organization" /></label><label>Your name<input id="authOwner" autocomplete="name" /></label></div>
+        <div id="registrationFields" hidden><label>Business name<input id="authCompany" autocomplete="organization" /></label><p class="form-hint">Creates a new, empty workspace. Already have a company on ledgerIQ? Ask an admin to invite you instead of registering again.</p><label>Your name<input id="authOwner" autocomplete="name" /></label></div>
         <label>Email address<input id="authEmail" type="email" autocomplete="email" required /></label>
-        <label>Password<input id="authPassword" type="password" autocomplete="current-password" required /></label>
+        <label id="authPasswordField">Password<input id="authPassword" type="password" autocomplete="current-password" required /></label>
         <p class="form-hint" id="authPasswordHint" hidden>At least 12 characters, with 3 of: lowercase, uppercase, numbers, symbols.</p>
         <label id="mfaLoginField">Authenticator code (only if enabled)<input id="authMfa" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" /></label>
+        <p class="form-hint" id="forgotPasswordSent" hidden></p>
+        <div class="domain-warning" id="domainWarningBox" hidden>
+          <p id="domainWarningText"></p>
+          <button type="button" class="secondary-button" id="confirmNewWorkspace">Create a new workspace anyway</button>
+        </div>
         <p class="form-error" id="authError" aria-live="polite"></p><button class="primary-button" id="authSubmit" type="submit">Sign in</button>
       </form>
       <button class="text-button auth-switch" id="authSwitch">New to ledgerIQ? Start your free trial</button>
       <button class="text-button auth-switch" id="forgotPassword">Forgot your password?</button>
       <p class="legal-small">By continuing you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Notice</a>.</p>
+    </div>
+  </section>
+  <section class="auth-screen" id="resetPasswordScreen" hidden>
+    <div class="auth-brand"><span class="brand-mark"><span></span><span></span><span></span></span><strong>ledgerIQ</strong></div>
+    <div class="auth-card">
+      <p class="eyebrow">RESET PASSWORD</p><h1>Choose a new password</h1><p>Enter a new password for your account.</p>
+      <form id="resetPasswordForm">
+        <label>New password<input id="resetPasswordInput" type="password" autocomplete="new-password" required minlength="12" /></label>
+        <p class="form-hint">At least 12 characters, with 3 of: lowercase, uppercase, numbers, symbols.</p>
+        <p class="form-error" id="resetPasswordError" aria-live="polite"></p>
+        <button class="primary-button" type="submit">Update password</button>
+      </form>
     </div>
   </section>
   <div class="app-shell" id="appShell" hidden>
@@ -37,33 +54,33 @@
 
       <nav class="nav" aria-label="Main navigation">
         <button class="nav-item active" data-view="dashboard">
-          <span class="nav-icon">⌂</span><span>Overview</span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v10h12V10"/><path d="M10 20v-6h4v6"/></svg></span><span>Overview</span>
         </button>
         <button class="nav-item" data-view="invoices">
-          <span class="nav-icon">▤</span><span>Invoices</span><span class="nav-count" id="navInvoiceCount">5</span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span>Invoices</span><span class="nav-count" id="navInvoiceCount">5</span>
         </button>
         <button class="nav-item" data-view="quotes">
-          <span class="nav-icon">✎</span><span>Quotes</span><span class="nav-count" id="navQuoteCount">0</span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 11.5h8"/><path d="M8 16c1-1.4 2-1.4 3 0s2 1.4 3 0"/></svg></span><span>Quotes</span><span class="nav-count" id="navQuoteCount">0</span>
         </button>
         <button class="nav-item" data-view="expenses">
-          <span class="nav-icon">↙</span><span>Expenses</span><span class="nav-count" id="navExpenseCount">0</span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M8.5 13l3.5 3.5L15.5 13"/></svg></span><span>Expenses</span><span class="nav-count" id="navExpenseCount">0</span>
         </button>
         <button class="nav-item" data-view="clients">
-          <span class="nav-icon">♙</span><span>Clients</span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="3"/><path d="M2.5 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15 14.2c2.6.4 4.5 2.7 4.5 5.3"/></svg></span><span>Clients</span>
+        </button>
+        <button class="nav-item" data-view="approvals">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9.3"/></svg></span><span>Approvals</span><span class="nav-count" id="pendingApprovalCount">0</span>
         </button>
         <button class="nav-item" data-view="reports">
-          <span class="nav-icon">⌁</span><span>Reports</span>
-        </button>
-        <button class="nav-item" data-view="enterprise">
-          <span class="nav-icon">◆</span><span>Enterprise</span><span class="nav-count" id="pendingApprovalCount">0</span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V11M10 20V4M16 20v-6"/><path d="M3 20h18"/></svg></span><span>Reports</span>
         </button>
       </nav>
 
       <div class="sidebar-bottom">
-        <button class="nav-item" data-view="profile"><span class="nav-icon">▣</span><span>Company Profile</span></button>
-        <button class="nav-item" id="billingNav"><span class="nav-icon">R</span><span>Plan &amp; billing</span></button>
-        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
-        <button class="nav-item" id="logoutButton"><span class="nav-icon">↪</span><span>Sign out</span></button>
+        <button class="nav-item" data-view="profile"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="10" height="18"/><rect x="14" y="9" width="6" height="12"/><path d="M7.5 7h1M7.5 11h1M7.5 15h1M16.5 13h1M16.5 17h1"/></svg></span><span>Company Profile</span></button>
+        <button class="nav-item" id="billingNav"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M6.5 15h4"/></svg></span><span>Plan &amp; billing</span></button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M4.4 7l2.5 1.5M17.1 15.5l2.5 1.5M3 12h3M18 12h3M4.4 17l2.5-1.5M17.1 8.5l2.5-1.5"/></svg></span><span>Settings</span></button>
+        <button class="nav-item" id="logoutButton"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span><span>Sign out</span></button>
         <div class="support-card">
           <div class="support-orbit">?</div>
           <strong>Need a hand?</strong>
@@ -101,6 +118,11 @@
           </div>
           <button class="date-button" id="dateRangeButton">This month <span>⌄</span></button>
         </div>
+
+        <article class="panel dashboard-alert" id="dashboardApprovalsBanner" hidden>
+          <strong><span id="dashboardApprovalsCount">0</span> pending approval(s)</strong> are awaiting a decision.
+          <button class="secondary-button" data-view-link="approvals">Review →</button>
+        </article>
 
         <div class="metric-grid">
           <article class="metric-card dark">
@@ -231,39 +253,27 @@
         </article>
         <article class="panel budget-panel">
           <div class="panel-heading"><div><h2>Budgets</h2><p>Track paid expenses against a spending plan by category and period.</p></div></div>
-          <form id="budgetForm" class="inline-form">
-            <select id="budgetCategory"><option>Software</option><option>Rent</option><option>Marketing</option><option>Equipment</option><option>Professional services</option><option>Travel</option><option>Utilities</option><option>Other</option></select>
-            <select id="budgetPeriodType"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select>
-            <input id="budgetPeriodStart" type="date" required>
-            <input id="budgetAmount" type="number" min="0" step="0.01" placeholder="Budget amount" required>
-            <button class="secondary-button">Add budget</button>
+          <form id="budgetForm" class="budget-form">
+            <div class="budget-form-row">
+              <label>Category<select id="budgetCategory"><option>Software</option><option>Rent</option><option>Marketing</option><option>Equipment</option><option>Professional services</option><option>Travel</option><option>Utilities</option><option>Other</option></select></label>
+              <label>Period<select id="budgetPeriodType"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></label>
+              <label>Starting<input id="budgetPeriodStart" type="date" required></label>
+            </div>
+            <div class="budget-form-row budget-form-amount">
+              <label>Budget amount<input id="budgetAmount" type="number" min="0" step="0.01" placeholder="0.00" required></label>
+              <button class="secondary-button" type="submit">Add budget</button>
+            </div>
           </form>
           <div class="budget-list" id="budgetRows"></div>
         </article>
       </section>
 
-      <section class="view" id="enterpriseView">
-        <div class="page-heading compact"><div><p class="eyebrow">OPERATIONS</p><h1>Enterprise control centre</h1><p>Companies, people, approvals, banking, integrations and governance.</p></div><div class="org-switcher"><label>Active company<select id="enterpriseOrgSelect"></select></label><button class="secondary-button" id="newOrgButton">＋ Company</button></div></div>
-        <div class="enterprise-summary"><article class="panel mini-metric"><span>Your role</span><strong id="enterpriseRole">—</strong><small>Current company</small></article><article class="panel mini-metric"><span>Pending approvals</span><strong id="enterpriseApprovalMetric">0</strong><small>Awaiting a decision</small></article><article class="panel mini-metric"><span>Unmatched banking</span><strong id="enterpriseBankMetric">0</strong><small>Transactions to reconcile</small></article><article class="panel mini-metric"><span>Connections</span><strong id="enterpriseConnectionMetric">0</strong><small>Provider integrations</small></article></div>
-
+      <section class="view" id="approvalsView">
+        <div class="page-heading compact"><div><p class="eyebrow">WORKFLOW</p><h1>Approvals</h1><p>Review and approve invoices, expenses, purchase orders and payroll before they're finalised.</p></div></div>
+        <div class="enterprise-summary"><article class="panel mini-metric"><span>Your role</span><strong id="enterpriseRole">—</strong><small>Current company</small></article><article class="panel mini-metric"><span>Pending approvals</span><strong id="enterpriseApprovalMetric">0</strong><small>Awaiting a decision</small></article></div>
         <div class="enterprise-grid">
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Team &amp; access</h2><p>Invite people and assign least-privilege roles.</p></div></div><form id="inviteForm" class="inline-form"><input id="inviteEmail" type="email" placeholder="person@company.com" required><select id="inviteRole"><option value="admin">Admin</option><option value="finance_manager">Finance manager</option><option value="approver">Approver</option><option value="accountant">Accountant</option><option value="employee">Employee</option><option value="viewer">Viewer</option></select><button class="secondary-button">Invite</button></form><div class="compact-list" id="teamRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Approvals</h2><p>Review invoices, expenses, payroll and purchase orders.</p></div></div><form id="approvalRuleForm" class="inline-form"><select id="approvalRuleType"><option value="all">All records</option><option value="invoice">Invoices</option><option value="expense">Expenses</option><option value="purchase_order">Purchase orders</option><option value="payroll_run">Payroll</option></select><input id="approvalRuleAmount" type="number" min="0" step="0.01" placeholder="Amount threshold" required><input id="approvalRuleCount" type="number" min="1" max="5" value="1" aria-label="Required approvers" required><button class="secondary-button">Add rule</button></form><div class="compact-list" id="approvalRuleRows"></div><h3>Requests</h3><div class="compact-list" id="approvalRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Provider connections</h2><p>Banking, accounting, payroll and payments.</p></div></div><form id="connectionForm" class="inline-form"><select id="connectionCategory"><option value="banking">Banking</option><option value="accounting">Accounting</option><option value="payroll">Payroll</option><option value="payments">Payments</option></select><input id="connectionProvider" placeholder="Provider, e.g. Xero" required><input id="connectionName" placeholder="Display name" required><button class="secondary-button">Add</button></form><div class="compact-list" id="connectionRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Bank reconciliation</h2><p>Accounts, imported feed transactions and matching.</p></div></div><form id="bankAccountForm" class="inline-form"><input id="bankAccountName" placeholder="Account name" required><input id="bankAccountMask" placeholder="Last four digits"><select id="bankAccountCurrency"><option>ZAR</option><option>USD</option><option>EUR</option><option>GBP</option></select><button class="secondary-button">Add account</button></form><div class="compact-list" id="bankAccountRows"></div><h3>Recent transactions</h3><div class="compact-list" id="bankTransactionRows"></div></article>
-          <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Double-entry accounting</h2><p>Chart of accounts, balanced journals, period locks and financial statements.</p></div></div><div class="accounting-metrics"><span>Revenue<strong id="ledgerRevenue">—</strong></span><span>Expenses<strong id="ledgerExpenses">—</strong></span><span>Net profit<strong id="ledgerProfit">—</strong></span><span>Assets<strong id="ledgerAssets">—</strong></span><span>Liabilities<strong id="ledgerLiabilities">—</strong></span></div><form id="ledgerAccountForm" class="inline-form"><input id="ledgerAccountCode" placeholder="Account code" required><input id="ledgerAccountName" placeholder="Account name" required><select id="ledgerAccountType"><option value="asset">Asset</option><option value="liability">Liability</option><option value="equity">Equity</option><option value="revenue">Revenue</option><option value="expense">Expense</option></select><button class="secondary-button">Add account</button></form><form id="journalForm" class="inline-form"><input id="journalReference" placeholder="Journal reference" required><input id="journalDate" type="date" required><select id="journalDebitAccount" aria-label="Debit account" required></select><select id="journalCreditAccount" aria-label="Credit account" required></select><input id="journalAmount" type="number" min="0.01" step="0.01" placeholder="Amount" required><input id="journalMemo" placeholder="Memo"><button class="primary-button">Post balanced journal</button></form><form id="periodLockForm" class="inline-form"><input id="periodStart" type="date" required><input id="periodEnd" type="date" required><button class="secondary-button">Lock period</button></form><div class="compact-list" id="ledgerAccountRows"></div><h3>Posted journals</h3><div class="compact-list" id="journalRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Business documents</h2><p>Quotes, purchase orders and credit notes.</p></div></div><form id="businessDocumentForm" class="inline-form"><select id="businessDocumentType"><option value="quote">Quote</option><option value="purchase_order">Purchase order</option><option value="credit_note">Credit note</option></select><input id="businessDocumentNumber" placeholder="Number" required><input id="businessDocumentCounterparty" placeholder="Counterparty" required><input id="businessDocumentTotal" type="number" min="0" step="0.01" placeholder="Total" required><button class="secondary-button">Create</button></form><div class="compact-list" id="businessDocumentRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Payroll runs</h2><p>Record or import payroll summaries for approval.</p></div></div><form id="payrollForm" class="inline-form"><input id="payrollProvider" placeholder="Provider" required><input id="payrollPeriodStart" type="date" required><input id="payrollPeriodEnd" type="date" required><input id="payrollNet" type="number" min="0" step="0.01" placeholder="Net payroll" required><input id="payrollEmployees" type="number" min="0" placeholder="Employees" required><button class="secondary-button">Add run</button></form><div class="compact-list" id="payrollRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Developer access</h2><p>Scoped API credentials and signed outbound webhooks.</p></div></div><div class="inline-form"><input id="apiKeyName" placeholder="API key name"><button class="secondary-button" id="createApiKey" type="button">Create key</button></div><pre class="secret-output" id="apiKeyOutput" hidden></pre><form id="webhookForm" class="inline-form"><input id="webhookUrl" type="url" placeholder="https://example.com/webhooks" required><button class="secondary-button">Add webhook</button></form><div class="compact-list" id="apiKeyRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Files &amp; recurring automation</h2><p>Attach source documents and schedule repeat records.</p></div></div><form id="fileUploadForm" class="inline-form"><input id="enterpriseFile" type="file" required><select id="fileEntityType"><option value="general">General</option><option value="invoice">Invoice</option><option value="expense">Expense</option><option value="payroll_run">Payroll</option></select><select id="fileDocumentCategory"><option value="">Uncategorised</option><option value="correspondence">Correspondence</option><option value="statutory">Statutory documents</option><option value="financial_reports">Financial reports</option><option value="vat_tax">VAT / tax documents</option><option value="misc">Miscellaneous</option></select><input id="fileEntityId" placeholder="Related record ID"><button class="secondary-button">Upload</button></form><form id="recurringForm" class="inline-form"><input id="recurringName" placeholder="Automation name" required><select id="recurringType"><option value="invoice">Invoice</option><option value="expense">Expense</option></select><select id="recurringFrequency"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select><input id="recurringDate" type="date" required><textarea id="recurringPayload" placeholder='Template JSON, e.g. {"vendor":"Hosting","amount":500}' required></textarea><button class="secondary-button">Schedule</button></form><div class="compact-list" id="automationRows"></div></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Import data</h2><p>Bulk-load clients, expenses or invoices from a CSV file.</p></div></div><div class="import-grid">
-            <div><strong>Clients</strong><a href="#" id="downloadClientsTemplate">Download template</a><input id="importClientsFile" type="file" accept=".csv,text/csv"></div>
-            <div><strong>Expenses</strong><a href="#" id="downloadExpensesTemplate">Download template</a><input id="importExpensesFile" type="file" accept=".csv,text/csv"></div>
-            <div><strong>Invoices</strong><a href="#" id="downloadInvoicesTemplate">Download template</a><input id="importInvoicesFile" type="file" accept=".csv,text/csv"></div>
-          </div><pre class="secret-output" id="importOutput" hidden></pre></article>
-          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Company notes</h2><p>Correspondence and internal notes about this company.</p></div></div><form id="noteForm" class="inline-form"><input id="noteTitle" placeholder="Title"><textarea id="noteBody" placeholder="Note"></textarea><button class="secondary-button">Add note</button></form><div class="compact-list" id="noteRows"></div></article>
-          <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Audit trail</h2><p>Immutable record of sensitive workspace activity.</p></div><button class="text-button" id="refreshAudit">Refresh</button></div><div class="audit-table" id="auditRows"></div></article>
-          <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Notifications &amp; delivery health</h2><p>Approval alerts and outbound webhook delivery results.</p></div><button class="text-button" id="readNotifications">Mark notifications read</button></div><div class="compact-list" id="notificationRows"></div><h3>Webhook deliveries</h3><div class="compact-list" id="webhookDeliveryRows"></div></article>
+          <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Approval rules</h2><p>Set an amount threshold that requires sign-off before a record counts as approved.</p></div></div><form id="approvalRuleForm" class="inline-form"><select id="approvalRuleType"><option value="all">All records</option><option value="invoice">Invoices</option><option value="expense">Expenses</option><option value="purchase_order">Purchase orders</option><option value="payroll_run">Payroll</option></select><input id="approvalRuleAmount" type="number" min="0" step="0.01" placeholder="Amount threshold" required><input id="approvalRuleCount" type="number" min="1" max="5" value="1" aria-label="Required approvers" required><button class="secondary-button">Add rule</button></form><div class="compact-list" id="approvalRuleRows"></div></article>
+          <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Requests</h2><p>Everything currently awaiting a decision.</p></div></div><div class="compact-list" id="approvalRows"></div></article>
         </div>
       </section>
 
@@ -317,33 +327,136 @@
 
       <section class="view" id="settingsView">
         <div class="page-heading compact">
-          <div><p class="eyebrow">YOUR WORKSPACE</p><h1>Settings</h1><p>Plan, security and account-level controls — not shown on your invoices.</p></div>
+          <div><p class="eyebrow">YOUR WORKSPACE</p><h1>Settings</h1><p>Plan, security, team and advanced controls — not shown on your invoices.</p></div>
         </div>
-        <div class="settings-layout">
-          <article class="panel settings-card subscription-card">
-            <div class="panel-heading"><div><h2>ledgerIQ Business</h2><p>Complete finance operations for growing businesses.</p></div><strong>R599/month</strong></div>
-            <p id="subscriptionStatus">30-day free trial</p><div class="settings-actions"><button class="secondary-button" id="monthlyBilling" type="button">Monthly · R599</button><button class="primary-button" id="annualBilling" type="button">Annual · R5,990</button></div>
-          </article>
-          <article class="panel settings-card security-card"><div class="panel-heading"><div><h2>Account security</h2><p>Email verification, password recovery, authenticator MFA and SMS verification.</p></div><strong id="securityStatus">Checking…</strong></div><div class="settings-actions"><button class="secondary-button" id="resendVerification" type="button">Verify email</button><button class="primary-button" id="setupMfa" type="button">Set up MFA</button><button class="secondary-button" id="setupPhoneOtp" type="button">Set up SMS OTP</button><button class="text-button danger" id="disablePhoneOtp" type="button" hidden>Disable SMS OTP</button><button class="secondary-button" id="checkReadiness" type="button">Production readiness</button></div><pre class="secret-output" id="mfaSetupOutput" hidden></pre></article>
-          <article class="panel settings-card data-card">
-            <div class="panel-heading"><div><h2>Your data</h2><p>Download a complete backup or permanently close your account.</p></div></div>
-            <div class="settings-actions"><button class="secondary-button" id="exportAccount" type="button">Export all data</button><button class="text-button danger" id="deleteAccount" type="button">Delete account</button></div>
-          </article>
-          <form id="retentionForm" class="panel settings-card">
-            <div class="panel-heading"><div><h2>Data retention</h2><p>How long we keep your workspace data after your account is cancelled. This does not affect active, paying accounts.</p></div></div>
-            <div class="settings-form-grid">
-              <label>Keep data for<select id="retentionDays">
-                <option value="-1">Forever (default)</option>
-                <option value="30">30 days after cancellation</option>
-                <option value="90">90 days after cancellation</option>
-                <option value="180">180 days after cancellation</option>
-                <option value="365">1 year after cancellation</option>
-                <option value="1825">5 years after cancellation (SARS record-keeping guidance)</option>
-                <option value="0">Delete immediately on cancellation</option>
-              </select></label>
-            </div>
-            <div class="settings-actions"><button class="primary-button" type="submit">Save</button></div>
-          </form>
+        <div class="filter-tabs settings-tabs" id="settingsTabs">
+          <button class="active" data-tab="security">Account &amp; Security</button>
+          <button data-tab="billing">Billing &amp; Data</button>
+          <button data-tab="team" id="settingsTabTeam">Team &amp; Access</button>
+          <button data-tab="bank" id="settingsTabBank">Bank &amp; Reconciliation</button>
+          <button data-tab="documents" id="settingsTabDocuments">Business Documents</button>
+          <button data-tab="connections" id="settingsTabConnections">Connected Services</button>
+          <button data-tab="notifications" id="settingsTabNotifications">Notifications</button>
+          <button data-tab="payroll" id="settingsTabPayroll">Payroll</button>
+          <button data-tab="advanced" id="settingsTabAdvanced">Advanced</button>
+        </div>
+
+        <div class="settings-tab-panel active" data-panel="security">
+          <div class="settings-layout">
+            <article class="panel settings-card security-card"><div class="panel-heading"><div><h2>Account security</h2><p>Email verification, password recovery, authenticator MFA and SMS verification.</p></div><strong id="securityStatus">Checking…</strong></div><div class="settings-actions"><button class="secondary-button" id="resendVerification" type="button">Verify email</button><button class="primary-button" id="setupMfa" type="button">Set up MFA</button><button class="secondary-button" id="setupPhoneOtp" type="button">Set up SMS OTP</button><button class="text-button danger" id="disablePhoneOtp" type="button" hidden>Disable SMS OTP</button><button class="secondary-button" id="checkReadiness" type="button">Production readiness</button></div><pre class="secret-output" id="mfaSetupOutput" hidden></pre></article>
+            <article class="panel settings-card audit-card"><div class="panel-heading"><div><h2>Audit trail</h2><p>Immutable record of sensitive workspace activity — who did what, and when.</p></div><button class="text-button" id="refreshAudit">Refresh</button></div><div class="audit-table" id="auditRows"></div></article>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="billing">
+          <div class="settings-layout">
+            <article class="panel settings-card subscription-card">
+              <div class="panel-heading"><div><h2>ledgerIQ Business</h2><p>Complete finance operations for growing businesses.</p></div><strong>R599/month</strong></div>
+              <p id="subscriptionStatus">30-day free trial</p><div class="settings-actions"><button class="secondary-button" id="monthlyBilling" type="button">Monthly · R599</button><button class="primary-button" id="annualBilling" type="button">Annual · R5,990</button></div>
+            </article>
+            <article class="panel settings-card data-card">
+              <div class="panel-heading"><div><h2>Your data</h2><p>Download a complete backup or permanently close your account.</p></div></div>
+              <div class="settings-actions"><button class="secondary-button" id="exportAccount" type="button">Export all data</button><button class="text-button danger" id="deleteAccount" type="button">Delete account</button></div>
+            </article>
+            <form id="retentionForm" class="panel settings-card">
+              <div class="panel-heading"><div><h2>Data retention</h2><p>How long we keep your workspace data after your account is cancelled. This does not affect active, paying accounts.</p></div></div>
+              <div class="settings-form-grid">
+                <label>Keep data for<select id="retentionDays">
+                  <option value="-1">Forever (default)</option>
+                  <option value="30">30 days after cancellation</option>
+                  <option value="90">90 days after cancellation</option>
+                  <option value="180">180 days after cancellation</option>
+                  <option value="365">1 year after cancellation</option>
+                  <option value="1825">5 years after cancellation (SARS record-keeping guidance)</option>
+                  <option value="0">Delete immediately on cancellation</option>
+                </select></label>
+              </div>
+              <div class="settings-actions"><button class="primary-button" type="submit">Save</button></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="team">
+          <div class="enterprise-grid">
+            <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Companies</h2><p>Switch between companies you belong to, or create a new one.</p></div></div><div class="settings-form-grid"><label>Active company<select id="enterpriseOrgSelect"></select></label></div><div class="settings-actions"><button class="secondary-button" id="newOrgButton">＋ New company</button></div></article>
+            <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Team &amp; access</h2><p>Invite people and assign least-privilege roles.</p></div></div><form id="inviteForm" class="inline-form"><input id="inviteEmail" type="email" placeholder="person@company.com" required><select id="inviteRole"><option value="admin">Admin</option><option value="finance_manager">Finance manager</option><option value="approver">Approver</option><option value="accountant">Accountant</option><option value="employee">Employee</option><option value="viewer">Viewer</option></select><button class="secondary-button">Invite</button></form><div class="compact-list" id="teamRows"></div></article>
+            <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Company notes</h2><p>Correspondence and internal notes shared with your team, not tied to a specific record.</p></div></div><form id="noteForm" class="inline-form"><input id="noteTitle" placeholder="Title"><textarea id="noteBody" placeholder="Note"></textarea><button class="secondary-button">Add note</button></form><div class="compact-list" id="noteRows"></div></article>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="bank">
+          <div class="enterprise-grid">
+            <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Bank &amp; reconciliation</h2><p>Match the transactions in your bank account with the transactions recorded in ledgerIQ so your records stay accurate. <strong id="enterpriseBankMetric">0</strong> transaction(s) still need matching.</p></div></div><form id="bankAccountForm" class="inline-form"><input id="bankAccountName" placeholder="Account name" required><input id="bankAccountMask" placeholder="Last four digits"><select id="bankAccountCurrency"><option>ZAR</option><option>USD</option><option>EUR</option><option>GBP</option></select><button class="secondary-button">Add account</button></form><div class="compact-list" id="bankAccountRows"></div><h3>Recent transactions</h3><div class="compact-list" id="bankTransactionRows"></div></article>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="documents">
+          <div class="enterprise-grid">
+            <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Business documents</h2><p>Quotes, purchase orders and credit notes.</p></div></div><form id="businessDocumentForm" class="inline-form"><select id="businessDocumentType"><option value="quote">Quote</option><option value="purchase_order">Purchase order</option><option value="credit_note">Credit note</option></select><input id="businessDocumentNumber" placeholder="Number" required><input id="businessDocumentCounterparty" placeholder="Counterparty" required><input id="businessDocumentTotal" type="number" min="0" step="0.01" placeholder="Total" required><button class="secondary-button">Create</button></form><div class="compact-list" id="businessDocumentRows"></div></article>
+            <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Company documents</h2><p>Upload statutory documents, financial reports or other files not tied to a specific invoice or client.</p></div></div><form id="fileUploadForm" class="inline-form"><input id="enterpriseFile" type="file" required><select id="fileDocumentCategory"><option value="">Uncategorised</option><option value="correspondence">Correspondence</option><option value="statutory">Statutory documents</option><option value="financial_reports">Financial reports</option><option value="vat_tax">VAT / tax documents</option><option value="misc">Miscellaneous</option></select><button class="secondary-button">Upload</button></form><div class="compact-list" id="generalFileRows"></div></article>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="connections">
+          <div class="enterprise-grid">
+            <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Connected services</h2><p>Connect external services such as your bank or payment provider to ledgerIQ. <strong id="enterpriseConnectionMetric">0</strong> connected.</p></div></div><form id="connectionForm" class="inline-form"><select id="connectionCategory"><option value="banking">Banking</option><option value="accounting">Accounting</option><option value="payroll">Payroll</option><option value="payments">Payments</option></select><input id="connectionProvider" placeholder="Provider, e.g. Xero" required><input id="connectionName" placeholder="Display name" required><button class="secondary-button">Add</button></form><div class="compact-list" id="connectionRows"></div></article>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="notifications">
+          <div class="enterprise-grid">
+            <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Notifications &amp; delivery health</h2><p>Approval alerts and outbound webhook delivery results.</p></div><button class="text-button" id="readNotifications">Mark notifications read</button></div><div class="compact-list" id="notificationRows"></div><h3>Webhook deliveries</h3><div class="compact-list" id="webhookDeliveryRows"></div></article>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="payroll">
+          <div class="enterprise-grid">
+            <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Payroll runs</h2><p>A payroll run is the process of calculating and recording employee pay for a specific pay period.</p></div></div><form id="payrollForm" class="inline-form"><input id="payrollProvider" placeholder="Provider" required><input id="payrollPeriodStart" type="date" required><input id="payrollPeriodEnd" type="date" required><input id="payrollNet" type="number" min="0" step="0.01" placeholder="Net payroll" required><input id="payrollEmployees" type="number" min="0" placeholder="Employees" required><button class="secondary-button">Add run</button></form><div class="compact-list" id="payrollRows"></div></article>
+          </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="advanced">
+          <div class="enterprise-grid">
+            <article class="panel enterprise-card wide"><div class="panel-heading"><div><h2>Double-entry accounting</h2><p>Every financial transaction is recorded in two places so your accounts remain balanced and accurate.</p></div></div><div class="accounting-metrics"><span>Revenue<strong id="ledgerRevenue">—</strong></span><span>Expenses<strong id="ledgerExpenses">—</strong></span><span>Net profit<strong id="ledgerProfit">—</strong></span><span>Assets<strong id="ledgerAssets">—</strong></span><span>Liabilities<strong id="ledgerLiabilities">—</strong></span></div><form id="ledgerAccountForm" class="inline-form"><input id="ledgerAccountCode" placeholder="Account code" required><input id="ledgerAccountName" placeholder="Account name" required><select id="ledgerAccountType"><option value="asset">Asset</option><option value="liability">Liability</option><option value="equity">Equity</option><option value="revenue">Revenue</option><option value="expense">Expense</option></select><button class="secondary-button">Add account</button></form><form id="journalForm" class="inline-form"><input id="journalReference" placeholder="Journal reference" required><input id="journalDate" type="date" required><select id="journalDebitAccount" aria-label="Debit account" required></select><select id="journalCreditAccount" aria-label="Credit account" required></select><input id="journalAmount" type="number" min="0.01" step="0.01" placeholder="Amount" required><input id="journalMemo" placeholder="Memo"><button class="primary-button">Post balanced journal</button></form><form id="periodLockForm" class="inline-form"><input id="periodStart" type="date" required><input id="periodEnd" type="date" required><button class="secondary-button">Lock period</button></form><div class="compact-list" id="ledgerAccountRows"></div><h3>Posted journals</h3><div class="compact-list" id="journalRows"></div></article>
+            <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Developer access</h2><p>Scoped API credentials and signed outbound webhooks — technical, for integrations only.</p></div></div><div class="inline-form"><input id="apiKeyName" placeholder="API key name"><button class="secondary-button" id="createApiKey" type="button">Create key</button></div><pre class="secret-output" id="apiKeyOutput" hidden></pre><form id="webhookForm" class="inline-form"><input id="webhookUrl" type="url" placeholder="https://example.com/webhooks" required><button class="secondary-button">Add webhook</button></form><div class="compact-list" id="apiKeyRows"></div></article>
+            <article class="panel enterprise-card wide">
+              <div class="panel-heading"><div><h2>Recurring tasks</h2><p>Automatically repeat actions such as recurring invoices or reminders on a schedule.</p></div></div>
+              <form id="recurringForm" class="recurring-form">
+                <div class="settings-form-grid">
+                  <label>Name<input id="recurringName" placeholder="e.g. Monthly retainer" required></label>
+                  <label>Type<select id="recurringType"><option value="invoice">Invoice</option><option value="expense">Expense</option></select></label>
+                  <label>Frequency<select id="recurringFrequency"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></label>
+                  <label>Starts<input id="recurringDate" type="date" required></label>
+                </div>
+                <div class="settings-form-grid" id="recurringInvoiceFields">
+                  <label>Client<select id="recurringClient"></select></label>
+                  <label>Reference prefix<input id="recurringPrefix" placeholder="AUTO"></label>
+                  <label>Days until due<input id="recurringDueDays" type="number" min="0" value="14"></label>
+                  <label>Tax rate (%)<input id="recurringTaxRate" type="number" min="0" max="100" step="0.01" value="0"></label>
+                  <label>Discount<input id="recurringDiscount" type="number" min="0" step="0.01" value="0"></label>
+                  <label class="full-field">Notes<textarea id="recurringNotes"></textarea></label>
+                  <label class="full-field">Payment details<textarea id="recurringPaymentDetails"></textarea></label>
+                </div>
+                <div id="recurringInvoiceLines">
+                  <div class="line-heading"><h3>Line items</h3><button type="button" class="text-button" id="addRecurringLine">＋ Add line</button></div>
+                  <div class="line-items" id="recurringLineItems"></div>
+                </div>
+                <div class="settings-form-grid" id="recurringExpenseFields" hidden>
+                  <label>Vendor<input id="recurringVendor" placeholder="Vendor name"></label>
+                  <label>Category<select id="recurringCategory"><option>Software</option><option>Rent</option><option>Marketing</option><option>Equipment</option><option>Professional services</option><option>Travel</option><option>Utilities</option><option>Other</option></select></label>
+                  <label>Amount<input id="recurringAmount" type="number" min="0" step="0.01"></label>
+                  <label class="full-field">Notes<textarea id="recurringExpenseNotes"></textarea></label>
+                </div>
+                <div class="settings-actions"><button class="secondary-button" type="submit">Schedule</button></div>
+              </form>
+              <div class="compact-list" id="automationRows"></div>
+            </article>
+            <article class="panel enterprise-card"><div class="panel-heading"><div><h2>Import data</h2><p>Bulk-load clients, expenses or invoices from a CSV file.</p></div></div><div class="import-grid">
+              <div><strong>Clients</strong><a href="#" id="downloadClientsTemplate">Download template</a><input id="importClientsFile" type="file" accept=".csv,text/csv"></div>
+              <div><strong>Expenses</strong><a href="#" id="downloadExpensesTemplate">Download template</a><input id="importExpensesFile" type="file" accept=".csv,text/csv"></div>
+              <div><strong>Invoices</strong><a href="#" id="downloadInvoicesTemplate">Download template</a><input id="importInvoicesFile" type="file" accept=".csv,text/csv"></div>
+            </div><pre class="secret-output" id="importOutput" hidden></pre></article>
+          </div>
         </div>
       </section>
     </main>
@@ -402,20 +515,86 @@
         <label>VAT number<input id="clientVatNumber" placeholder="Optional VAT registration number" /></label>
         <div class="modal-actions"><button type="button" class="secondary-button" data-close="clientModal">Cancel</button><button class="primary-button" type="submit">Add client</button></div>
       </form>
+      <div class="context-section" id="clientContextSection" hidden>
+        <h3>Notes</h3><div id="clientNotesSection"></div>
+        <h3>Files</h3><div id="clientFilesSection"></div>
+      </div>
     </div>
   </div>
 
   <div class="modal-backdrop" id="previewModal" aria-hidden="true">
     <div class="modal preview-modal" role="dialog" aria-modal="true">
-      <div class="preview-actions"><button class="secondary-button" data-close="previewModal">Close</button><button class="primary-button" id="printInvoice">⇩ Save as PDF</button></div>
+      <div class="preview-actions">
+        <span class="status" id="previewStatusBadge">draft</span>
+        <div class="preview-actions-buttons">
+          <button class="secondary-button" data-close="previewModal">Close</button>
+          <button class="secondary-button" id="previewEditInvoice">Edit</button>
+          <a class="secondary-button" id="downloadInvoicePdf" href="#" target="_blank" rel="noopener">⇩ Download PDF</a>
+          <button class="secondary-button" id="previewRecordPaymentInvoice">Record payment details</button>
+          <button class="secondary-button" id="previewMarkPaidInvoice">Mark as paid</button>
+          <button class="primary-button" id="previewSendInvoice">Send to client</button>
+        </div>
+      </div>
+      <div class="preview-approval" id="previewApprovalBox" hidden></div>
       <div class="invoice-paper" id="invoicePaper"></div>
+      <div class="context-section">
+        <h3>Notes</h3><div id="previewInvoiceNotes"></div>
+        <h3>Files</h3><div id="previewInvoiceFiles"></div>
+      </div>
     </div>
   </div>
 
   <div class="modal-backdrop" id="quotePreviewModal" aria-hidden="true">
     <div class="modal preview-modal" role="dialog" aria-modal="true">
-      <div class="preview-actions"><button class="secondary-button" data-close="quotePreviewModal">Close</button><button class="primary-button" id="printQuote">⇩ Save as PDF</button></div>
+      <div class="preview-actions">
+        <span class="status" id="previewQuoteStatusBadge">draft</span>
+        <div class="preview-actions-buttons">
+          <button class="secondary-button" data-close="quotePreviewModal">Close</button>
+          <button class="secondary-button" id="previewEditQuote">Edit</button>
+          <a class="secondary-button" id="downloadQuotePdf" href="#" target="_blank" rel="noopener">⇩ Download PDF</a>
+          <button class="primary-button" id="previewSendQuote">Send to client</button>
+        </div>
+      </div>
+      <div class="preview-approval" id="previewQuoteApprovalBox" hidden></div>
       <div class="invoice-paper" id="quotePaper"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="paymentModal" aria-hidden="true">
+    <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+      <div class="modal-header"><div><p class="eyebrow">PAYMENT</p><h2 id="paymentModalTitle">Record payment details</h2></div><button class="close-modal" data-close="paymentModal">×</button></div>
+      <form id="paymentForm">
+        <label>Amount<input id="paymentAmount" type="number" min="0.01" step="0.01" required /></label>
+        <label>Date paid<input id="paymentDate" type="date" required /></label>
+        <label>Method<select id="paymentMethod"><option value="">Not specified</option><option value="eft">EFT / bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label>
+        <label>Reference<input id="paymentReference" placeholder="Transaction reference (optional)" /></label>
+        <label>Notes<textarea id="paymentNotes" placeholder="Optional notes"></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-button" data-close="paymentModal">Cancel</button><button class="primary-button" type="submit">Record payment</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="sendDocumentModal" aria-hidden="true">
+    <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="sendDocumentTitle">
+      <div class="modal-header"><div><p class="eyebrow">EMAIL</p><h2 id="sendDocumentTitle">Send to client</h2></div><button class="close-modal" data-close="sendDocumentModal">×</button></div>
+      <p>Send <strong id="sendDocumentNumber"></strong> to <strong id="sendDocumentEmail"></strong>?</p>
+      <div class="modal-actions"><button type="button" class="secondary-button" data-close="sendDocumentModal">Cancel</button><button class="primary-button" id="confirmSendDocument">Send</button></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="newOrgModal" aria-hidden="true">
+    <div class="modal small-modal" role="dialog" aria-modal="true" aria-labelledby="newOrgModalTitle">
+      <div class="modal-header"><div><p class="eyebrow">NEW COMPANY</p><h2 id="newOrgModalTitle">Create a company</h2></div><button class="close-modal" data-close="newOrgModal">×</button></div>
+      <form id="newOrgForm">
+        <label>Company name<input id="newOrgName" required placeholder="Acme Studio" /></label>
+        <details class="progressive-fields">
+          <summary>Add registration details (optional)</summary>
+          <label>Legal name<input id="newOrgLegalName" placeholder="Defaults to company name" /></label>
+          <label>Registration number<input id="newOrgRegistrationNumber" /></label>
+          <label>VAT number<input id="newOrgVatNumber" /></label>
+        </details>
+        <div class="modal-actions"><button type="button" class="secondary-button" data-close="newOrgModal">Cancel</button><button class="primary-button" type="submit">Create company</button></div>
+      </form>
     </div>
   </div>
 
