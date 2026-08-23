@@ -364,7 +364,7 @@ function staticFile(req,res,url) {
   if(!['GET','HEAD'].includes(req.method))return false;
   const routes={'/':'landing.html','/app':'index.html','/privacy':'privacy.html','/terms':'terms.html','/developers':'api.html'},publicFiles=new Set(['app.js','styles.css','marketing.css','enterprise-marketing.css','legal.css']);const requested=routes[url.pathname]||decodeURIComponent(url.pathname.slice(1));
   if(!publicFiles.has(requested)&&!Object.values(routes).includes(requested))return false;const resolved=path.join(ROOT,requested);
-  const stat=fs.statSync(resolved),range=req.headers.range;res.setHeader('Content-Type',mime[path.extname(resolved).toLowerCase()]||'application/octet-stream');res.setHeader('Cache-Control',path.extname(resolved)==='.html'?'no-cache':'public, max-age=3600');
+  const stat=fs.statSync(resolved),range=req.headers.range;res.setHeader('Content-Type',mime[path.extname(resolved).toLowerCase()]||'application/octet-stream');res.setHeader('Cache-Control','no-cache');
   if(range){const match=range.match(/^bytes=(\d+)-(\d*)$/),start=match?Number(match[1]):NaN,end=match&&match[2]?Number(match[2]):stat.size-1;if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start||start>=stat.size||end>=stat.size){res.writeHead(416,{'Content-Range':`bytes */${stat.size}`});res.end();return true;}res.writeHead(206,{'Content-Range':`bytes ${start}-${end}/${stat.size}`,'Accept-Ranges':'bytes','Content-Length':end-start+1});if(req.method==='HEAD')res.end();else fs.createReadStream(resolved,{start,end}).pipe(res);return true;}
   res.writeHead(200,{'Content-Length':stat.size});if(req.method==='HEAD')res.end();else fs.createReadStream(resolved).pipe(res);return true;
 }
