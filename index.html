@@ -60,6 +60,7 @@
       </nav>
 
       <div class="sidebar-bottom">
+        <button class="nav-item" data-view="profile"><span class="nav-icon">▣</span><span>Company Profile</span></button>
         <button class="nav-item" id="billingNav"><span class="nav-icon">R</span><span>Plan &amp; billing</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
         <button class="nav-item" id="logoutButton"><span class="nav-icon">↪</span><span>Sign out</span></button>
@@ -266,9 +267,9 @@
         </div>
       </section>
 
-      <section class="view" id="settingsView">
+      <section class="view" id="profileView">
         <div class="page-heading compact">
-          <div><p class="eyebrow">YOUR WORKSPACE</p><h1>Settings &amp; company profile</h1><p>These details appear on your invoices and tailor ledgerIQ to your business.</p></div>
+          <div><p class="eyebrow">YOUR WORKSPACE</p><h1>Company profile</h1><p>These details and this branding appear on the invoices and quotes you send.</p></div>
         </div>
         <form id="profileForm" class="settings-layout">
           <article class="panel settings-card logo-card">
@@ -298,19 +299,27 @@
             </div>
             <div class="settings-actions"><span id="settingsSaved" aria-live="polite"></span><button class="primary-button" type="submit">Save changes</button></div>
           </article>
-          <article class="panel settings-card">
-            <div class="panel-heading"><div><h2>Invoice template</h2><p>Pick a layout and accent for invoices and quotes.</p></div></div>
+          <article class="panel settings-card template-card">
+            <div class="panel-heading"><div><h2>Invoice template</h2><p>Pick a layout and accent for invoices and quotes — the preview below updates as you choose.</p></div></div>
             <div class="template-swatches">
-              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="classic" checked /><span>Classic</span></label>
-              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="modern" /><span>Modern</span></label>
-              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="minimal" /><span>Minimal</span></label>
-              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="bold" /><span>Bold</span></label>
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="classic" checked /><div class="template-preview-frame"><div class="invoice-paper template-preview-inner template-classic font-sans" data-template-preview="classic"></div></div><span>Classic</span></label>
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="modern" /><div class="template-preview-frame"><div class="invoice-paper template-preview-inner template-modern font-sans" data-template-preview="modern"></div></div><span>Modern</span></label>
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="minimal" /><div class="template-preview-frame"><div class="invoice-paper template-preview-inner template-minimal font-sans" data-template-preview="minimal"></div></div><span>Minimal</span></label>
+              <label class="template-swatch"><input type="radio" name="invoiceTemplate" value="bold" /><div class="template-preview-frame"><div class="invoice-paper template-preview-inner template-bold font-sans" data-template-preview="bold"></div></div><span>Bold</span></label>
             </div>
             <div class="settings-form-grid">
               <label>Accent color<input id="invoiceAccentColor" type="color" value="#5b5fef" /></label>
               <label>Font<select id="invoiceFontSelect"><option value="sans">Sans-serif</option><option value="serif">Serif</option><option value="mono">Monospace</option></select></label>
             </div>
           </article>
+        </form>
+      </section>
+
+      <section class="view" id="settingsView">
+        <div class="page-heading compact">
+          <div><p class="eyebrow">YOUR WORKSPACE</p><h1>Settings</h1><p>Plan, security and account-level controls — not shown on your invoices.</p></div>
+        </div>
+        <div class="settings-layout">
           <article class="panel settings-card subscription-card">
             <div class="panel-heading"><div><h2>ledgerIQ Business</h2><p>Complete finance operations for growing businesses.</p></div><strong>R599/month</strong></div>
             <p id="subscriptionStatus">30-day free trial</p><div class="settings-actions"><button class="secondary-button" id="monthlyBilling" type="button">Monthly · R599</button><button class="primary-button" id="annualBilling" type="button">Annual · R5,990</button></div>
@@ -320,7 +329,7 @@
             <div class="panel-heading"><div><h2>Your data</h2><p>Download a complete backup or permanently close your account.</p></div></div>
             <div class="settings-actions"><button class="secondary-button" id="exportAccount" type="button">Export all data</button><button class="text-button danger" id="deleteAccount" type="button">Delete account</button></div>
           </article>
-          <article class="panel settings-card">
+          <form id="retentionForm" class="panel settings-card">
             <div class="panel-heading"><div><h2>Data retention</h2><p>How long we keep your workspace data after your account is cancelled. This does not affect active, paying accounts.</p></div></div>
             <div class="settings-form-grid">
               <label>Keep data for<select id="retentionDays">
@@ -333,8 +342,9 @@
                 <option value="0">Delete immediately on cancellation</option>
               </select></label>
             </div>
-          </article>
-        </form>
+            <div class="settings-actions"><button class="primary-button" type="submit">Save</button></div>
+          </form>
+        </div>
       </section>
     </main>
   </div>
