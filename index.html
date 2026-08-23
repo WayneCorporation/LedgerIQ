@@ -104,25 +104,25 @@
         <div class="metric-grid">
           <article class="metric-card dark">
             <div class="metric-label"><span class="metric-icon mint">↗</span>Revenue</div>
-            <strong id="revenueMetric">€12,840.00</strong>
+            <strong id="revenueMetric">R0.00</strong>
             <div class="metric-foot"><span class="positive">↑ 18.2%</span><span>vs. last month</span></div>
             <div class="spark-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           </article>
           <article class="metric-card">
             <div class="metric-label"><span class="metric-icon lilac">○</span>Outstanding</div>
-            <strong id="outstandingMetric">€3,420.00</strong>
+            <strong id="outstandingMetric">R0.00</strong>
             <div class="metric-foot"><span id="outstandingCount">3 invoices</span><span>awaiting payment</span></div>
             <div class="progress"><span id="outstandingProgress"></span></div>
           </article>
           <article class="metric-card">
             <div class="metric-label"><span class="metric-icon amber">!</span>Overdue</div>
-            <strong id="overdueMetric">€840.00</strong>
+            <strong id="overdueMetric">R0.00</strong>
             <div class="metric-foot"><span id="overdueCount">1 invoice</span><span>needs attention</span></div>
             <button class="card-link" data-view-link="invoices">Review overdue <span>→</span></button>
           </article>
           <article class="metric-card">
             <div class="metric-label"><span class="metric-icon blue">✓</span>Paid this month</div>
-            <strong id="paidMetric">€9,420.00</strong>
+            <strong id="paidMetric">R0.00</strong>
             <div class="metric-foot"><span class="positive">↑ 12.4%</span><span>vs. last month</span></div>
             <div class="avatar-stack"><span>NM</span><span>OL</span><span>VA</span><span>+8</span></div>
           </article>
@@ -131,9 +131,9 @@
         <article class="panel cashflow-panel">
           <div class="panel-heading"><div><h2>Money in vs. money out</h2><p>Paid sales and expenses recorded this month</p></div><button class="secondary-button" data-view-link="expenses">View expenses <span>→</span></button></div>
           <div class="cashflow-stats">
-            <div><span>Money in</span><strong id="monthlyIncome">€0.00</strong><small>Paid invoices</small></div>
-            <div><span>Money out</span><strong id="monthlyExpenses">€0.00</strong><small>Paid expenses</small></div>
-            <div class="net-stat"><span>Net profit</span><strong id="monthlyProfit">€0.00</strong><small id="profitMargin">0% margin</small></div>
+            <div><span>Money in</span><strong id="monthlyIncome">R0.00</strong><small>Paid invoices</small></div>
+            <div><span>Money out</span><strong id="monthlyExpenses">R0.00</strong><small>Paid expenses</small></div>
+            <div class="net-stat"><span>Net profit</span><strong id="monthlyProfit">R0.00</strong><small id="profitMargin">0% margin</small></div>
           </div>
           <div class="cashflow-bar" aria-label="Income compared with expenses"><span id="incomeBar"></span><i id="expenseBar"></i></div>
         </article>
@@ -142,10 +142,10 @@
           <article class="panel activity-panel">
             <div class="panel-heading"><div><h2>Revenue overview</h2><p>Paid invoices over the last 6 months</p></div><button class="more-button" id="revenueMore" aria-label="View reports">•••</button></div>
             <div class="chart-wrap">
-              <div class="y-axis" id="revenueAxis"><span>€15k</span><span>€10k</span><span>€5k</span><span>€0</span></div>
+              <div class="y-axis" id="revenueAxis"><span>R0</span><span>R0</span><span>R0</span><span>R0</span></div>
               <div class="chart" id="revenueChart" aria-label="Revenue chart"></div>
             </div>
-            <div class="chart-legend"><span><i></i> Revenue</span><strong id="chartTotal">€46,680 <small>Total</small></strong></div>
+            <div class="chart-legend"><span><i></i> Revenue</span><strong id="chartTotal">R0.00 <small>Total</small></strong></div>
           </article>
 
           <article class="panel quick-panel">
@@ -205,9 +205,9 @@
           <button class="primary-button" id="newExpensePage">＋ Add expense</button>
         </div>
         <div class="expense-summary">
-          <article class="panel mini-metric"><span>Spent this month</span><strong id="expensePaidMetric">€0.00</strong><small>Paid expenses</small></article>
-          <article class="panel mini-metric"><span>Bills to pay</span><strong id="expenseDueMetric">€0.00</strong><small id="expenseDueCount">0 bills</small></article>
-          <article class="panel mini-metric warning"><span>Overdue bills</span><strong id="expenseOverdueMetric">€0.00</strong><small id="expenseOverdueCount">0 bills</small></article>
+          <article class="panel mini-metric"><span>Spent this month</span><strong id="expensePaidMetric">R0.00</strong><small>Paid expenses</small></article>
+          <article class="panel mini-metric"><span>Bills to pay</span><strong id="expenseDueMetric">R0.00</strong><small id="expenseDueCount">0 bills</small></article>
+          <article class="panel mini-metric warning"><span>Overdue bills</span><strong id="expenseOverdueMetric">R0.00</strong><small id="expenseOverdueCount">0 bills</small></article>
         </div>
         <article class="panel list-panel">
           <div class="toolbar">
@@ -222,11 +222,11 @@
         <div class="page-heading compact"><div><p class="eyebrow">INSIGHTS</p><h1>Reports</h1><p>A clear view of revenue, payment speed, and outstanding work.</p></div><button class="secondary-button" id="exportReport">⇩ Export CSV</button></div>
         <div class="report-grid">
           <article class="panel report-main"><div class="panel-heading"><div><h2>Income by month</h2><p>Paid revenue for the current year</p></div></div><div class="large-bars" id="reportBars"></div></article>
-          <article class="panel report-side"><h2>Payment health</h2><div class="donut" id="paymentDonut"><span id="paymentRate">72%</span></div><p>of invoice value has been paid</p><div class="health-row"><span><i class="green"></i>Paid</span><strong id="healthPaid">€9,420</strong></div><div class="health-row"><span><i class="purple"></i>Outstanding</span><strong id="healthOutstanding">€3,420</strong></div><div class="health-row"><span><i class="orange"></i>Overdue</span><strong id="healthOverdue">€840</strong></div></article>
+          <article class="panel report-side"><h2>Payment health</h2><div class="donut" id="paymentDonut"><span id="paymentRate">0%</span></div><p>of invoice value has been paid</p><div class="health-row"><span><i class="green"></i>Paid</span><strong id="healthPaid">R0</strong></div><div class="health-row"><span><i class="purple"></i>Outstanding</span><strong id="healthOutstanding">R0</strong></div><div class="health-row"><span><i class="orange"></i>Overdue</span><strong id="healthOverdue">R0</strong></div></article>
         </div>
         <article class="panel profit-report">
           <div class="panel-heading"><div><h2>Profit &amp; loss snapshot</h2><p>Paid income less paid business expenses for this month</p></div></div>
-          <div class="profit-grid"><div><span>Income</span><strong id="reportIncome">€0.00</strong></div><div><span>Expenses</span><strong id="reportExpenses">€0.00</strong></div><div class="profit-result"><span>Net profit</span><strong id="reportProfit">€0.00</strong></div></div>
+          <div class="profit-grid"><div><span>Income</span><strong id="reportIncome">R0.00</strong></div><div><span>Expenses</span><strong id="reportExpenses">R0.00</strong></div><div class="profit-result"><span>Net profit</span><strong id="reportProfit">R0.00</strong></div></div>
         </article>
         <article class="panel budget-panel">
           <div class="panel-heading"><div><h2>Budgets</h2><p>Track paid expenses against a spending plan by category and period.</p></div></div>
@@ -238,6 +238,14 @@
             <button class="secondary-button">Add budget</button>
           </form>
           <div class="budget-list" id="budgetRows"></div>
+        </article>
+        <article class="panel ai-assistant-panel">
+          <div class="panel-heading"><div><h2>Ask about your finances</h2><p>Answers are generated from your own ledgerIQ data — not a substitute for accounting advice.</p></div></div>
+          <div class="ai-log" id="aiAssistantLog"></div>
+          <form id="aiAssistantForm" class="inline-form">
+            <input id="aiAssistantQuestion" placeholder="e.g. Who owes us the most money right now?" required>
+            <button class="secondary-button" id="aiAssistantSubmit">Ask</button>
+          </form>
         </article>
       </section>
 
@@ -356,7 +364,7 @@
         <datalist id="unitPresets"><option value="hours"><option value="items"><option value="kg"><option value="days"><option value="units"></datalist>
         <label class="notes-label">Notes<textarea id="invoiceNotes" placeholder="Payment terms, project notes, or a friendly thank you…"></textarea></label>
         <label class="notes-label">Payment details<textarea id="invoicePaymentDetails" placeholder="Bank details or payment instructions"></textarea></label>
-        <div class="invoice-form-foot"><div class="form-total"><span>Total</span><strong id="formTotal">€0.00</strong></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="invoiceModal">Cancel</button><button type="submit" class="primary-button">Create invoice</button></div></div>
+        <div class="invoice-form-foot"><div class="form-total"><span>Total</span><strong id="formTotal">R0.00</strong></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="invoiceModal">Cancel</button><button type="submit" class="primary-button">Create invoice</button></div></div>
       </form>
     </div>
   </div>
@@ -377,7 +385,7 @@
         <div class="line-items" id="quoteLineItems"></div>
         <label class="notes-label">Notes<textarea id="quoteNotes" placeholder="Scope notes, assumptions, or validity terms…"></textarea></label>
         <label class="notes-label">Payment details<textarea id="quotePaymentDetails" placeholder="Bank details or payment instructions"></textarea></label>
-        <div class="invoice-form-foot"><div class="form-total"><span>Total</span><strong id="quoteFormTotal">€0.00</strong></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="quoteModal">Cancel</button><button type="submit" class="primary-button">Create quote</button></div></div>
+        <div class="invoice-form-foot"><div class="form-total"><span>Total</span><strong id="quoteFormTotal">R0.00</strong></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="quoteModal">Cancel</button><button type="submit" class="primary-button">Create quote</button></div></div>
       </form>
     </div>
   </div>
