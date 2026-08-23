@@ -9,7 +9,6 @@ const { initEnterprise } = require('./enterprise');
 const { initSecurity } = require('./security');
 const { reportError,checkMonitoring,uploadBackup,operationalState } = require('./operations');
 const { validatePassword } = require('./password-policy');
-const { initAiAssistant } = require('./ai-assistant');
 
 loadEnv();
 validateProductionConfig();
@@ -168,7 +167,6 @@ async function sendQuoteEmail(quote,client,p) { if(!process.env.RESEND_API_KEY||
 
 const enterprise=initEnterprise(db,{send,fail,body,clean,now,id,email,hash,operationalState,clientIp,money,date,transaction});
 const security=initSecurity(db,{send,fail,body,clean,now,id,email,hash,passwordHash,passwordMatches});
-const aiAssistant=initAiAssistant(db,{clean});
 db.exec(`CREATE TABLE IF NOT EXISTS api_idempotency(id TEXT PRIMARY KEY,api_key_id TEXT NOT NULL,idempotency_hash TEXT NOT NULL,method TEXT NOT NULL,path TEXT NOT NULL,response_status INTEGER NOT NULL,response_body TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(api_key_id,idempotency_hash));`);
 if(process.env.INITIALIZE_DATABASE_ONLY==='true'){console.log(`ledgerIQ ${db.dialect} schema initialized`);db.close();process.exit(0)}
 
@@ -218,7 +216,7 @@ async function api(req,res,url) {
     const owner=tenantId?db.prepare('SELECT id tenant_id FROM tenants WHERE id=?').get(tenantId):db.prepare('SELECT tenant_id FROM users WHERE email=?').get(customerEmail);if(owner&&['active','past_due','cancelled'].includes(status))transaction(()=>{db.prepare(`UPDATE tenants SET subscription_status=?,paystack_customer_code=COALESCE(NULLIF(?,''),paystack_customer_code),paystack_subscription_code=COALESCE(NULLIF(?,''),paystack_subscription_code),cancelled_at=CASE WHEN ?='cancelled' THEN COALESCE(cancelled_at,?) WHEN ?='active' THEN NULL ELSE cancelled_at END WHERE id=?`).run(status,customerCode,subscriptionCode,status,now(),status,owner.tenant_id);db.prepare('INSERT INTO billing_webhook_events VALUES(?,?,?,?)').run(id(),provider,payloadHash,now())});return send(res,200,{ok:true,processed:Boolean(owner&&status)});
   }
   const user=requireUser(req,res);if(!user)return;
-  if(user.via_api_key){const mutation=['POST','PUT','PATCH','DELETE'].includes(req.method);if(mutation&&!user.api_scopes.includes('write'))return fail(res,403,'This API key is read-only');if(['/api/account','/api/billing','/api/auth','/api/enterprise/api-keys','/api/enterprise/webhooks','/api/ai'].some(prefix=>url.pathname.startsWith(prefix)))return fail(res,403,'API keys cannot access account security, credential-management or AI assistant endpoints');}
+  if(user.via_api_key){const mutation=['POST','PUT','PATCH','DELETE'].includes(req.method);if(mutation&&!user.api_scopes.includes('write'))return fail(res,403,'This API key is read-only');if(['/api/account','/api/billing','/api/auth','/api/enterprise/api-keys','/api/enterprise/webhooks'].some(prefix=>url.pathname.startsWith(prefix)))return fail(res,403,'API keys cannot access account security or credential-management endpoints');}
   if(user.via_api_key&&req.method==='POST'){
     const idempotencyKey=clean(req.headers['idempotency-key'],200);if(!idempotencyKey)return fail(res,400,'API POST requests require an Idempotency-Key header');const idempotencyHash=hash(`${user.key_id}:${idempotencyKey}`),saved=db.prepare('SELECT response_status,response_body FROM api_idempotency WHERE api_key_id=? AND idempotency_hash=?').get(user.key_id,idempotencyHash);if(saved){res.writeHead(saved.response_status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Idempotent-Replayed':'true'});res.end(saved.response_body);return}const originalEnd=res.end.bind(res);res.end=(chunk,...args)=>{const responseBody=Buffer.isBuffer(chunk)?chunk.toString('utf8'):String(chunk||'');if(res.statusCode<500&&!res.headersSent){}try{if(res.statusCode<500)db.prepare('INSERT OR IGNORE INTO api_idempotency VALUES(?,?,?,?,?,?,?,?)').run(id(),user.key_id,idempotencyHash,req.method,url.pathname,res.statusCode,responseBody,now())}catch{}return originalEnd(chunk,...args)};
   }
@@ -229,13 +227,6 @@ async function api(req,res,url) {
   if(protectedWrite&&!paidOrTrial)return fail(res,402,'Your trial has ended. Choose a plan to keep creating and updating records.');
   if(!user.via_api_key&&await security.handleProtected(req,res,url,user))return;
   if(await enterprise.handle(req,res,url,user))return;
-  if(req.method==='POST'&&url.pathname==='/api/ai/ask'){
-    if(!paidOrTrial)return fail(res,402,'Your trial has ended. Choose a plan to use the AI assistant.');
-    if(limited(req,'ai-ask',20,15*60_000))return fail(res,429,'Too many questions. Try again in a few minutes.');
-    const d=await body(req),question=clean(d.question,2000);
-    if(!question)return fail(res,400,'Ask a question');
-    return send(res,200,await aiAssistant.ask(user,question));
-  }
   if(req.method==='GET'&&url.pathname==='/api/bootstrap')return send(res,200,bootstrap(user.tenant_id,user.organization_id));
   if(req.method==='PUT'&&url.pathname==='/api/profile'){
     if(!enterprise.requirePermission(user,res,'manage_org'))return;

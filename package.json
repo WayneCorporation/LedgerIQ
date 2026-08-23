@@ -15,7 +15,6 @@
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.70.0",
     "pg": "^8.23.0"
   }
 }
