@@ -1,5 +1,6 @@
 const crypto=require('node:crypto');
 const {validatePassword}=require('./password-policy');
+const {sendMail}=require('./email');
 
 const B32='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 function base32Encode(buffer){let bits='',out='';for(const byte of buffer)bits+=byte.toString(2).padStart(8,'0');for(let i=0;i<bits.length;i+=5)out+=B32[parseInt(bits.slice(i,i+5).padEnd(5,'0'),2)];return out}
@@ -21,7 +22,6 @@ function initSecurity(db,h){
  CREATE TABLE IF NOT EXISTS sms_otp_codes(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,code_hash TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,expires_at TEXT NOT NULL,consumed_at TEXT,created_at TEXT NOT NULL);
  CREATE INDEX IF NOT EXISTS idx_sms_otp_user ON sms_otp_codes(user_id,consumed_at,expires_at);`);
 
- async function sendMail(to,subject,html){if(!process.env.RESEND_API_KEY||!process.env.MAIL_FROM)return false;const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from:process.env.MAIL_FROM,to:[to],subject,html}),signal:AbortSignal.timeout(10000)});return response.ok}
  async function issue(userId,type){db.prepare('UPDATE auth_tokens SET used_at=? WHERE user_id=? AND type=? AND used_at IS NULL').run(now(),userId,type);const raw=crypto.randomBytes(32).toString('base64url');db.prepare('INSERT INTO auth_tokens VALUES(?,?,?,?,?,?,?)').run(id(),userId,type,hash(raw),new Date(Date.now()+(type==='verify_email'?24*60:30)*60000).toISOString(),null,now());return raw}
  async function sendVerification(userId,userEmail){const raw=await issue(userId,'verify_email'),origin=process.env.APP_ORIGIN||'http://localhost:3000',sent=await sendMail(userEmail,'Verify your ledgerIQ email',`<p>Verify your email to secure your ledgerIQ account.</p><p><a href="${origin}/app?verify=${encodeURIComponent(raw)}">Verify email</a></p>`);return{sent,...(!sent&&process.env.NODE_ENV!=='production'?{token:raw}:{})}}
  async function sendSms(phone,message){const base=process.env.SMS_PROVIDER_API_URL;if(!base)throw new Error('SMS delivery is not configured');const response=await fetch(base,{method:'POST',headers:{Authorization:`Bearer ${process.env.SMS_PROVIDER_API_KEY||''}`,'Content-Type':'application/json'},body:JSON.stringify({to:phone,message}),signal:AbortSignal.timeout(10000)});if(!response.ok)throw new Error('SMS provider rejected the message')}
